@@ -69,6 +69,21 @@ uvicorn main:app --reload
 
 ---
 
+## Versions Used
+
+- **Python**: 3.11
+- **FastAPI**: 0.136.1
+- **Uvicorn**: 0.46.0
+- **Pandas**: 3.0.2
+- **NumPy**: 2.4.4
+- **Scikit-learn**: 1.8.0
+- **SciPy**: 1.17.1
+- **Pydantic**: 2.13.3
+- **Node.js**: (if applicable, specify version)
+- **npm**: (if applicable, specify version)
+
+---
+
 ## Dependencies
 
 ### Python Packages

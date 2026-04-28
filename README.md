@@ -1,107 +1,106 @@
 # SmartBuild
 
-## Project Overview
-SmartBuild is a project designed to provide compatibility and recommendation services. It includes a backend built with FastAPI and a frontend for user interaction.
+SmartBuild is an AI/ML-based Random Forest decision support system for custom PC recommendation.  
+It collects user requirements, generates a component list, and reports compatibility issues.
 
----
+## Tech Stack
+
+- Backend: FastAPI (Python)
+- Frontend: React + TypeScript + Vite
+- Model: Random Forest (served by backend)
 
 ## Prerequisites
-Before setting up the project, ensure you have the following installed:
 
-1. **Python 3.11**
-   - Download and install Python from [python.org](https://www.python.org/downloads/).
-   - Ensure `pip` is installed along with Python.
+- Python 3.11+
+- Node.js + npm
+- Git
 
-2. **Git**
-   - Download and install Git from [git-scm.com](https://git-scm.com/).
+## Setup
 
-3. **Virtual Environment (venv)**
-   - Python's built-in `venv` module is used to create isolated environments.
+### 1) Clone repository
 
-4. **Node.js and npm** (if the frontend requires additional setup)
-   - Download and install Node.js from [nodejs.org](https://nodejs.org/).
-
----
-
-## Setup Instructions
-
-### 1. Clone the Repository
 ```bash
 git clone <repository-url>
 cd SmartBuild
 ```
 
-### 2. Create and Activate a Virtual Environment
-#### On Windows:
+### 2) Create and activate Python virtual environment
+
+Windows:
+
 ```bash
 python -m venv smartbuild-env
 smartbuild-env\Scripts\activate
 ```
 
-#### On macOS/Linux:
+macOS/Linux:
+
 ```bash
 python3 -m venv smartbuild-env
 source smartbuild-env/bin/activate
 ```
 
-### 3. Install Python Dependencies
+### 3) Install backend dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Install Frontend Dependencies (if applicable)
-Navigate to the `frontend` directory and install dependencies:
+### 4) Install frontend dependencies
+
 ```bash
 cd frontend
 npm install
+cd ..
 ```
 
-### 5. Run the Backend Server
-Navigate to the `backend` directory and start the FastAPI server:
+## Run the Project
+
+Run backend and frontend in separate terminals.
+
+### Backend (FastAPI)
+
 ```bash
-cd backend
-uvicorn main:app --reload
+uvicorn backend.main:app --reload
 ```
 
-### 6. Access the Application
-- Open your browser and navigate to `http://127.0.0.1:8000` for the backend API.
-- If the frontend is set up, navigate to the appropriate URL for the frontend.
+Backend URLs:
+- API root: `http://127.0.0.1:8000/`
+- API docs: `http://127.0.0.1:8000/docs`
 
----
+### Frontend (Vite)
 
-## Versions Used
+```bash
+cd frontend
+npm run dev
+```
 
-- **Python**: 3.11
-- **FastAPI**: 0.136.1
-- **Uvicorn**: 0.46.0
-- **Pandas**: 3.0.2
-- **NumPy**: 2.4.4
-- **Scikit-learn**: 1.8.0
-- **SciPy**: 1.17.1
-- **Pydantic**: 2.13.3
-- **Node.js**: (if applicable, specify version)
-- **npm**: (if applicable, specify version)
+Frontend URL:
+- App: `http://127.0.0.1:5173/`
 
----
+## Frontend Routes
 
-## Dependencies
+- `/` - Landing page
+- `/user-input` - User input form
+- `/build-result` - Generated custom PC component list
 
-### Python Packages
-The following Python packages are required and will be installed via `pip`:
-- `fastapi`
-- `uvicorn`
-- `pandas`
-- `numpy`
-- `scikit-learn`
-- `joblib`
-- `scipy`
-- `pydantic`
+## Current User Flow
 
-### Node.js Packages
-If the frontend requires additional setup, dependencies will be managed via `npm`.
+1. Open landing page.
+2. Click **Start recommendation**.
+3. Fill required fields on **User Input**:
+   - Minimum budget
+   - Maximum budget
+   - Usage
+   - Priority components (at least one)
+4. (Optional) Set brand preferences per component.
+5. Click **Generate Build** to open `/build-result`.
 
----
+## Build Frontend for Production
 
-## Notes
-- Ensure your virtual environment is activated before running any Python commands.
-- For any issues, refer to the documentation of the respective tools or libraries.
+```bash
+cd frontend
+npm run build
+```
+
+Build output is generated in `frontend/dist`.

@@ -1,0 +1,86 @@
+{
+  "CPU": [
+    { "name": "AMD Ryzen 9 7950X", "price": 38950, "performance": 96, "brand": "AMD" },
+    { "name": "Intel Core i9-14900K", "price": 38400, "performance": 95, "brand": "Intel" },
+    { "name": "AMD Ryzen 7 7800X3D", "price": 28990, "performance": 94, "brand": "AMD" },
+    { "name": "Intel Core i7-14700K", "price": 27950, "performance": 92, "brand": "Intel" },
+    { "name": "AMD Ryzen 7 7700X", "price": 22450, "performance": 90, "brand": "AMD" },
+    { "name": "Intel Core i5-14600K", "price": 19990, "performance": 88, "brand": "Intel" },
+    { "name": "AMD Ryzen 5 7600X", "price": 15450, "performance": 85, "brand": "AMD" },
+    { "name": "Intel Core i5-13600K", "price": 16890, "performance": 86, "brand": "Intel" },
+    { "name": "AMD Ryzen 5 5600", "price": 8650, "performance": 80, "brand": "AMD" },
+    { "name": "Intel Core i5-12400F", "price": 9150, "performance": 79, "brand": "Intel" }
+  ],
+  "GPU": [
+    { "name": "NVIDIA GeForce RTX 4090", "price": 116900, "performance": 99, "brand": "NVIDIA" },
+    { "name": "AMD Radeon RX 7900 XTX", "price": 69950, "performance": 95, "brand": "AMD" },
+    { "name": "NVIDIA GeForce RTX 4080 SUPER", "price": 68990, "performance": 94, "brand": "NVIDIA" },
+    { "name": "NVIDIA GeForce RTX 4070 Ti SUPER", "price": 52950, "performance": 92, "brand": "NVIDIA" },
+    { "name": "AMD Radeon RX 7900 GRE", "price": 43500, "performance": 90, "brand": "AMD" },
+    { "name": "NVIDIA GeForce RTX 4070 SUPER", "price": 39990, "performance": 89, "brand": "NVIDIA" },
+    { "name": "AMD Radeon RX 7800 XT", "price": 35500, "performance": 87, "brand": "AMD" },
+    { "name": "NVIDIA GeForce RTX 4060 Ti 16GB", "price": 31950, "performance": 84, "brand": "NVIDIA" },
+    { "name": "AMD Radeon RX 7700 XT", "price": 29900, "performance": 83, "brand": "AMD" },
+    { "name": "NVIDIA GeForce RTX 4060", "price": 21950, "performance": 78, "brand": "NVIDIA" }
+  ],
+  "RAM": [
+    { "name": "Corsair Dominator Platinum RGB 64GB DDR5-6000", "price": 18950, "performance": 92, "brand": "Corsair" },
+    { "name": "G.Skill Trident Z5 RGB 64GB DDR5-6400", "price": 17950, "performance": 91, "brand": "G.Skill" },
+    { "name": "Corsair Vengeance RGB 32GB DDR5-6000", "price": 11450, "performance": 88, "brand": "Corsair" },
+    { "name": "G.Skill Ripjaws S5 32GB DDR5-6000", "price": 10490, "performance": 87, "brand": "G.Skill" },
+    { "name": "Corsair Vengeance LPX 32GB DDR4-3600", "price": 6790, "performance": 83, "brand": "Corsair" },
+    { "name": "G.Skill Ripjaws V 32GB DDR4-3600", "price": 6490, "performance": 82, "brand": "G.Skill" },
+    { "name": "Corsair Vengeance LPX 16GB DDR4-3200", "price": 3690, "performance": 77, "brand": "Corsair" },
+    { "name": "G.Skill Ripjaws V 16GB DDR4-3200", "price": 3490, "performance": 76, "brand": "G.Skill" },
+    { "name": "Corsair Vengeance 16GB DDR5-5200", "price": 5490, "performance": 78, "brand": "Corsair" },
+    { "name": "G.Skill Flare X5 16GB DDR5-5200", "price": 5290, "performance": 77, "brand": "G.Skill" }
+  ],
+  "Storage": [
+    { "name": "Samsung 990 Pro 2TB NVMe", "price": 11490, "performance": 96, "brand": "Samsung" },
+    { "name": "Samsung 980 Pro 2TB NVMe", "price": 10290, "performance": 93, "brand": "Samsung" },
+    { "name": "Western Digital Black SN850X 2TB", "price": 10690, "performance": 94, "brand": "Western Digital" },
+    { "name": "Western Digital Black SN770 2TB", "price": 7690, "performance": 88, "brand": "Western Digital" },
+    { "name": "Samsung 970 EVO Plus 1TB", "price": 5390, "performance": 86, "brand": "Samsung" },
+    { "name": "Western Digital Blue SN580 1TB", "price": 4290, "performance": 83, "brand": "Western Digital" },
+    { "name": "Samsung 870 EVO 1TB SATA", "price": 4290, "performance": 80, "brand": "Samsung" },
+    { "name": "Western Digital Blue 1TB SATA", "price": 3290, "performance": 75, "brand": "Western Digital" },
+    { "name": "Samsung 990 EVO 1TB", "price": 6090, "performance": 89, "brand": "Samsung" },
+    { "name": "Western Digital Green SN350 1TB", "price": 3590, "performance": 74, "brand": "Western Digital" }
+  ],
+  "Motherboard": [
+    { "name": "AMD ROG Crosshair X670E Hero", "price": 34950, "performance": 95, "brand": "ASUS" },
+    { "name": "Intel ROG Maximus Z790 Hero", "price": 33950, "performance": 94, "brand": "ASUS" },
+    { "name": "AMD MSI MPG X670E Carbon WiFi", "price": 29950, "performance": 92, "brand": "MSI" },
+    { "name": "Intel MSI MPG Z790 Carbon WiFi", "price": 29450, "performance": 91, "brand": "MSI" },
+    { "name": "AMD ASUS TUF Gaming B650-PLUS", "price": 15950, "performance": 88, "brand": "ASUS" },
+    { "name": "Intel ASUS TUF Gaming Z790-PLUS", "price": 16950, "performance": 87, "brand": "ASUS" },
+    { "name": "AMD MSI MAG B650 Tomahawk", "price": 14950, "performance": 86, "brand": "MSI" },
+    { "name": "Intel MSI PRO Z790-A WiFi", "price": 15450, "performance": 85, "brand": "MSI" },
+    { "name": "AMD ASUS Prime B550M-A", "price": 6890, "performance": 80, "brand": "ASUS" },
+    { "name": "Intel MSI B760M Mortar WiFi", "price": 10290, "performance": 82, "brand": "MSI" }
+  ],
+  "PSU": [
+    { "name": "Corsair AX1600i", "price": 30950, "performance": 2400, "brand": "Corsair" },
+    { "name": "EVGA SuperNOVA 1600 T2", "price": 28690, "performance": 2300, "brand": "EVGA" },
+    { "name": "Corsair HX1500i", "price": 22450, "performance": 2200, "brand": "Corsair" },
+    { "name": "EVGA SuperNOVA 1300 GT", "price": 14950, "performance": 2100, "brand": "EVGA" },
+    { "name": "Corsair RM1200x Shift", "price": 13990, "performance": 2000, "brand": "Corsair" },
+    { "name": "EVGA SuperNOVA 1200 P3", "price": 16490, "performance": 1950, "brand": "EVGA" },
+    { "name": "Corsair RM1000x", "price": 10490, "performance": 1850, "brand": "Corsair" },
+    { "name": "EVGA SuperNOVA 1000 G6", "price": 9990, "performance": 1800, "brand": "EVGA" },
+    { "name": "Corsair RM850e", "price": 7290, "performance": 1700, "brand": "Corsair" },
+    { "name": "EVGA SuperNOVA 850 GT", "price": 6990, "performance": 1650, "brand": "EVGA" }
+  ],
+  "Case": [
+    { "name": "NZXT H9 Flow", "price": 9990, "performance": 92, "brand": "NZXT" },
+    { "name": "Cooler Master HAF 700", "price": 22950, "performance": 90, "brand": "Cooler Master" },
+    { "name": "NZXT H7 Flow", "price": 7990, "performance": 88, "brand": "NZXT" },
+    { "name": "Cooler Master MasterCase H500M", "price": 10950, "performance": 87, "brand": "Cooler Master" },
+    { "name": "NZXT H5 Flow", "price": 5890, "performance": 84, "brand": "NZXT" },
+    { "name": "Cooler Master TD500 Mesh", "price": 6290, "performance": 83, "brand": "Cooler Master" },
+    { "name": "NZXT H510 Flow", "price": 5290, "performance": 81, "brand": "NZXT" },
+    { "name": "Cooler Master MasterBox 520", "price": 4890, "performance": 80, "brand": "Cooler Master" },
+    { "name": "NZXT H510", "price": 4290, "performance": 78, "brand": "NZXT" },
+    { "name": "Cooler Master MasterBox Q300L", "price": 2990, "performance": 75, "brand": "Cooler Master" }
+  ]
+}

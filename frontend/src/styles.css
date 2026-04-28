@@ -1,7 +1,7 @@
 :root {
   font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  color: #dbe5ff;
-  background: #060d24;
+  color: #F2F5F3;
+  background: #101411;
 }
 
 * {
@@ -13,7 +13,7 @@ body {
   background:
     radial-gradient(circle at 20% 0%, rgba(73, 122, 255, 0.3), transparent 40%),
     radial-gradient(circle at 80% 100%, rgba(0, 191, 166, 0.2), transparent 45%),
-    #060d24;
+    #101411;
 }
 
 h1,
@@ -37,15 +37,13 @@ h2 {
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  background: #ffffff;
-  border-radius: 14px;
-  padding: 0.45rem 0.7rem;
 }
 
 .brand-logo-image {
-  width: 88px;
-  height: 88px;
+  width: 200px;
+  height: 120px;
   object-fit: contain;
+  filter: drop-shadow(0 0 20px rgba(242, 245, 243, 0.8));
 }
 
 .brand-title {
@@ -56,6 +54,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 0.2rem;
+  display: none;
 }
 
 .brand-smart {
@@ -67,12 +66,12 @@ h2 {
 }
 
 .top-pill {
-  border: 1px solid rgba(160, 186, 255, 0.2);
+  border: 1px solid rgba(242, 245, 243, 0.2);
   border-radius: 999px;
   padding: 0.45rem 0.85rem;
   margin: 0;
-  color: #b5c5ff;
-  background: rgba(16, 28, 68, 0.45);
+  color: #F2F5F3;
+  background: rgba(16, 20, 17, 0.45);
   font-size: 0.92rem;
 }
 
@@ -84,8 +83,9 @@ h2 {
 
 .hero-card,
 .hero-side-card {
-  background: linear-gradient(160deg, rgba(18, 29, 69, 0.95), rgba(13, 21, 53, 0.8));
-  border: 1px solid rgba(86, 118, 208, 0.26);
+  background: rgba(16, 20, 17, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(242, 245, 243, 0.1);
   border-radius: 16px;
   padding: 1.4rem;
 }
@@ -100,13 +100,13 @@ h2 {
 
 .hero-copy {
   margin: 0 0 1.1rem;
-  color: #bac9f8;
+  color: #F2F5F3;
   max-width: 90%;
 }
 
 .hero-question {
   margin: 0.25rem 0 0.7rem;
-  color: #e3ecff;
+  color: #F2F5F3;
 }
 
 .hero-actions {
@@ -127,25 +127,25 @@ h2 {
 }
 
 .hero-button-start {
-  background: linear-gradient(90deg, #6ba8ff, #9a63ff);
-  color: #091331;
+  background: #0FBF3E;
+  color: #f6f8ff;
 }
 
 .hero-button-docs {
-  background: rgba(18, 31, 75, 0.55);
-  color: #e2ebff;
-  border: 1px solid rgba(157, 183, 255, 0.2);
+  background: rgba(16, 20, 17, 0.55);
+  color: #0FBF3E;
+  border: 1px solid #0FBF3E;
 }
 
 .hero-side-card h2 {
   margin-bottom: 0.7rem;
-  color: #eff4ff;
+  color: #F2F5F3;
 }
 
 .hero-side-card ul {
   margin: 0;
   padding-left: 1.2rem;
-  color: #becdf8;
+  color: #F2F5F3;
   display: grid;
   gap: 0.35rem;
 }
@@ -159,15 +159,16 @@ h2 {
 }
 
 .card {
-  background: linear-gradient(160deg, rgba(18, 29, 69, 0.95), rgba(13, 21, 53, 0.8));
-  border: 1px solid rgba(86, 118, 208, 0.26);
+  background: rgba(16, 20, 17, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(242, 245, 243, 0.1);
   border-radius: 16px;
   padding: 1rem;
   box-shadow: 0 8px 28px rgba(1, 6, 20, 0.45);
 }
 
 .subtext {
-  color: #9db0e9;
+  color: #F2F5F3;
 }
 
 .form {
@@ -190,12 +191,12 @@ fieldset {
 input,
 select,
 button {
-  border: 1px solid rgba(155, 181, 255, 0.22);
+  border: 1px solid rgba(242, 245, 243, 0.22);
   border-radius: 8px;
   padding: 0.55rem 0.7rem;
   font-size: 0.95rem;
-  background: rgba(10, 19, 48, 0.95);
-  color: #e6eeff;
+  background: rgba(16, 20, 17, 0.95);
+  color: #F2F5F3;
 }
 
 /* Hide number input steppers while keeping numeric keyboard/validation behavior. */
@@ -210,18 +211,15 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 button {
-  background: #3a63e5;
-  color: #ffffff;
+  background: #0FBF3E;
+  color: #f6f8ff;
   border: none;
   cursor: pointer;
 }
 
-button:disabled {
-  background: #334155;
-  color: #94a3b8;
-  opacity: 0.8;
-  border: 1px dashed rgba(148, 163, 184, 0.55);
-  cursor: not-allowed;
+button:hover:not(:disabled) {
+  background: #0FBF3E;
+  opacity: 0.9;
 }
 
 .generate-button:disabled {
@@ -248,13 +246,13 @@ button:disabled {
 }
 
 .chip {
-  background: rgba(22, 38, 91, 0.85);
-  color: #bfd1ff;
-  border: 1px solid rgba(122, 153, 248, 0.3);
+  background: rgba(16, 20, 17, 0.85);
+  color: #F2F5F3;
+  border: 1px solid rgba(242, 245, 243, 0.3);
 }
 
 .chip-active {
-  background: linear-gradient(90deg, #3f70ff, #7b54ff);
+  background: #0FBF3E;
   color: #ffffff;
   border-color: transparent;
 }
@@ -267,9 +265,9 @@ button:disabled {
 
 .priority-tooltip {
   margin-top: 0.55rem;
-  border: 1px solid rgba(122, 153, 248, 0.3);
-  background: rgba(22, 38, 91, 0.55);
-  color: #d8e4ff;
+  border: 1px solid rgba(242, 245, 243, 0.3);
+  background: rgba(16, 20, 17, 0.55);
+  color: #F2F5F3;
   border-radius: 10px;
   padding: 0.65rem 0.75rem;
   font-size: 0.92rem;
@@ -298,7 +296,7 @@ button:disabled {
   display: grid;
   gap: 0.45rem;
   padding-left: 1rem;
-  color: #d7e4ff;
+  color: #F2F5F3;
 }
 
 .error {

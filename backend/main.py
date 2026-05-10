@@ -1,100 +1,80 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import os
-import joblib
+
+from schemas.user_input import UserInput
+
+from services.intent_classifier import classify_usage
+from services.recommender import recommend_component
+from services.selector import select_build
+from services.compatibility import validate_build
+from services.requirement_validator import validate_requirements
+from services.alternatives import get_component_alternatives
 
 app = FastAPI()
 
-# Allow frontend apps (e.g., Vite on localhost:5173) to call this API.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:5173",
-        "http://localhost:5173",
-    ],
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "model", "model.pkl")
+@app.post("/generate-build")
+def generate_build(user: UserInput):
 
-model = joblib.load(MODEL_PATH)
+    # STEP 1 — Intent Classification
+    classification = classify_usage(
+        user.description
+    )
 
-class UserInput(BaseModel):
-    minBudget: int
-    maxBudget: int
-    usage: int
-    priority: int
+    usage = classification["usage"]
+    focus = classification["focus"]
 
-@app.get("/")
-def root():
-    return {"message": "SmartBuild API running"}
+    # STEP 2 — Recommend Anchor Component
+    anchor_component = recommend_component(
+        user.max_budget,
+        usage,
+        focus
+    )
 
-@app.post("/predict")
-def predict(data: UserInput):
-    budget = (data.minBudget + data.maxBudget) // 2
+    # STEP 3 — Generate Compatible Build
+    build = select_build(
+        anchor_component,
+        focus,
+        user.min_budget,
+        user.max_budget
+    )
 
-    prediction = model.predict([[budget, data.usage, data.priority]])
+    # HANDLE NO BUILD FOUND
+    if "error" in build:
 
-    return {
-        "tier": int(prediction[0]),
-        "derived_budget": budget
-    }
-
-from backend.schemas.user_input import UserRequirementInput
-
-@app.post("/user-requirements/")
-def get_user_requirements(input: UserRequirementInput):
-    """
-    Endpoint to receive user requirements for PC build.
-    """
-    return {
-        "message": "User requirements received successfully!",
-        "data": input.dict()
-    }
-
-from backend.services.build_recommendation import recommend_build
-from backend.services.compatibility_checker import check_compatibility
-
-@app.post("/recommend-build/")
-def generate_recommendation(input: UserRequirementInput):
-    """
-    Endpoint to generate a recommended PC build based on user input.
-    """
-    recommendation = recommend_build(input)
-    issues = check_compatibility(recommendation)
-    return {
-        "message": "Recommended build generated successfully!",
-        "recommendation": recommendation,
-        "compatibility": {
-            "is_compatible": len(issues) == 0,
-            "issues": issues
-        }
-    }
-
-@app.post("/generate-build/")
-def generate_build(input: UserRequirementInput):
-    """
-    Endpoint to generate a complete PC build based on user input, ensuring compatibility.
-    """
-    # Step 1: Generate a recommended build
-    build = recommend_build(input)
-
-    # Step 2: Check compatibility
-    issues = check_compatibility(build)
-    if issues:
         return {
-            "message": "Compatibility issues found in the generated build.",
-            "issues": issues,
-            "build": build
+            "classification": classification,
+            "error": build["error"]
         }
 
-    # Step 3: Return the compatible build
+    # STEP 4 — Compatibility Validation
+    compatibility = validate_build(build)
+
+    # STEP 5 — Budget / Requirement Validation
+    fit = validate_requirements(
+        build,
+        user.min_budget,
+        user.max_budget
+    )
+
+    # STEP 6 — Generate Alternative Options
+    alternatives = get_component_alternatives(
+        build,
+        user.min_budget,
+        user.max_budget
+    )
+
+    # FINAL RESPONSE
     return {
-        "message": "Build generated successfully!",
-        "build": build
+
+        "classification": classification,
+
+        "anchor_component": anchor_component,
+
+        "build": build,
+
+        "alternatives": alternatives,
+
+        "compatibility": compatibility,
+
+        "requirement_fit": fit
     }

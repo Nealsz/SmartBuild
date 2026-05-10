@@ -1,86 +1,507 @@
 {
-  "CPU": [
-    { "name": "AMD Ryzen 9 7950X", "price": 38950, "performance": 96, "brand": "AMD" },
-    { "name": "Intel Core i9-14900K", "price": 38400, "performance": 95, "brand": "Intel" },
-    { "name": "AMD Ryzen 7 7800X3D", "price": 28990, "performance": 94, "brand": "AMD" },
-    { "name": "Intel Core i7-14700K", "price": 27950, "performance": 92, "brand": "Intel" },
-    { "name": "AMD Ryzen 7 7700X", "price": 22450, "performance": 90, "brand": "AMD" },
-    { "name": "Intel Core i5-14600K", "price": 19990, "performance": 88, "brand": "Intel" },
-    { "name": "AMD Ryzen 5 7600X", "price": 15450, "performance": 85, "brand": "AMD" },
-    { "name": "Intel Core i5-13600K", "price": 16890, "performance": 86, "brand": "Intel" },
-    { "name": "AMD Ryzen 5 5600", "price": 8650, "performance": 80, "brand": "AMD" },
-    { "name": "Intel Core i5-12400F", "price": 9150, "performance": 79, "brand": "Intel" }
+  "cpus": [
+    {
+      "id": "cpu_1",
+      "name": "Ryzen 5 3600",
+      "socket": "AM4",
+      "tdp": 65,
+      "cpu_score": 70,
+      "price": 5500
+    },
+    {
+      "id": "cpu_2",
+      "name": "Ryzen 5 5600",
+      "socket": "AM4",
+      "tdp": 65,
+      "cpu_score": 78,
+      "price": 7500
+    },
+    {
+      "id": "cpu_3",
+      "name": "Ryzen 7 5700X",
+      "socket": "AM4",
+      "tdp": 65,
+      "cpu_score": 86,
+      "price": 12500
+    },
+    {
+      "id": "cpu_4",
+      "name": "Ryzen 7 5800X",
+      "socket": "AM4",
+      "tdp": 105,
+      "cpu_score": 90,
+      "price": 14500
+    },
+    {
+      "id": "cpu_5",
+      "name": "Ryzen 9 5900X",
+      "socket": "AM4",
+      "tdp": 105,
+      "cpu_score": 96,
+      "price": 21000
+    },
+    {
+      "id": "cpu_6",
+      "name": "Intel i3-12100F",
+      "socket": "LGA1700",
+      "tdp": 58,
+      "cpu_score": 68,
+      "price": 6200
+    },
+    {
+      "id": "cpu_7",
+      "name": "Intel i5-12400F",
+      "socket": "LGA1700",
+      "tdp": 65,
+      "cpu_score": 80,
+      "price": 9500
+    },
+    {
+      "id": "cpu_8",
+      "name": "Intel i5-12600K",
+      "socket": "LGA1700",
+      "tdp": 125,
+      "cpu_score": 88,
+      "price": 16500
+    },
+    {
+      "id": "cpu_9",
+      "name": "Intel i7-12700K",
+      "socket": "LGA1700",
+      "tdp": 125,
+      "cpu_score": 94,
+      "price": 21000
+    },
+    {
+      "id": "cpu_10",
+      "name": "Intel i9-12900K",
+      "socket": "LGA1700",
+      "tdp": 125,
+      "cpu_score": 99,
+      "price": 32000
+    }
   ],
-  "GPU": [
-    { "name": "NVIDIA GeForce RTX 4090", "price": 116900, "performance": 99, "brand": "NVIDIA" },
-    { "name": "AMD Radeon RX 7900 XTX", "price": 69950, "performance": 95, "brand": "AMD" },
-    { "name": "NVIDIA GeForce RTX 4080 SUPER", "price": 68990, "performance": 94, "brand": "NVIDIA" },
-    { "name": "NVIDIA GeForce RTX 4070 Ti SUPER", "price": 52950, "performance": 92, "brand": "NVIDIA" },
-    { "name": "AMD Radeon RX 7900 GRE", "price": 43500, "performance": 90, "brand": "AMD" },
-    { "name": "NVIDIA GeForce RTX 4070 SUPER", "price": 39990, "performance": 89, "brand": "NVIDIA" },
-    { "name": "AMD Radeon RX 7800 XT", "price": 35500, "performance": 87, "brand": "AMD" },
-    { "name": "NVIDIA GeForce RTX 4060 Ti 16GB", "price": 31950, "performance": 84, "brand": "NVIDIA" },
-    { "name": "AMD Radeon RX 7700 XT", "price": 29900, "performance": 83, "brand": "AMD" },
-    { "name": "NVIDIA GeForce RTX 4060", "price": 21950, "performance": 78, "brand": "NVIDIA" }
+
+  "gpus": [
+    {
+      "id": "gpu_1",
+      "name": "GTX 1650",
+      "gpu_score": 55,
+      "length": 200,
+      "recommended_psu": 450,
+      "tdp": 75,
+      "price": 9000
+    },
+    {
+      "id": "gpu_2",
+      "name": "RX 6500 XT",
+      "gpu_score": 60,
+      "length": 210,
+      "recommended_psu": 450,
+      "tdp": 107,
+      "price": 10500
+    },
+    {
+      "id": "gpu_3",
+      "name": "RTX 2060",
+      "gpu_score": 72,
+      "length": 229,
+      "recommended_psu": 500,
+      "tdp": 160,
+      "price": 14500
+    },
+    {
+      "id": "gpu_4",
+      "name": "RX 6600",
+      "gpu_score": 78,
+      "length": 220,
+      "recommended_psu": 500,
+      "tdp": 132,
+      "price": 15000
+    },
+    {
+      "id": "gpu_5",
+      "name": "RTX 3060",
+      "gpu_score": 82,
+      "length": 242,
+      "recommended_psu": 550,
+      "tdp": 170,
+      "price": 18000
+    },
+    {
+      "id": "gpu_6",
+      "name": "RTX 4060",
+      "gpu_score": 90,
+      "length": 245,
+      "recommended_psu": 650,
+      "tdp": 190,
+      "price": 24000
+    },
+    {
+      "id": "gpu_7",
+      "name": "RX 6700 XT",
+      "gpu_score": 91,
+      "length": 267,
+      "recommended_psu": 650,
+      "tdp": 230,
+      "price": 26000
+    },
+    {
+      "id": "gpu_8",
+      "name": "RTX 3070",
+      "gpu_score": 93,
+      "length": 280,
+      "recommended_psu": 650,
+      "tdp": 220,
+      "price": 31000
+    },
+    {
+      "id": "gpu_9",
+      "name": "RTX 4070",
+      "gpu_score": 96,
+      "length": 300,
+      "recommended_psu": 750,
+      "tdp": 220,
+      "price": 39000
+    },
+    {
+      "id": "gpu_10",
+      "name": "RTX 4080",
+      "gpu_score": 99,
+      "length": 320,
+      "recommended_psu": 850,
+      "tdp": 320,
+      "price": 69000
+    }
   ],
-  "RAM": [
-    { "name": "Corsair Dominator Platinum RGB 64GB DDR5-6000", "price": 18950, "performance": 92, "brand": "Corsair" },
-    { "name": "G.Skill Trident Z5 RGB 64GB DDR5-6400", "price": 17950, "performance": 91, "brand": "G.Skill" },
-    { "name": "Corsair Vengeance RGB 32GB DDR5-6000", "price": 11450, "performance": 88, "brand": "Corsair" },
-    { "name": "G.Skill Ripjaws S5 32GB DDR5-6000", "price": 10490, "performance": 87, "brand": "G.Skill" },
-    { "name": "Corsair Vengeance LPX 32GB DDR4-3600", "price": 6790, "performance": 83, "brand": "Corsair" },
-    { "name": "G.Skill Ripjaws V 32GB DDR4-3600", "price": 6490, "performance": 82, "brand": "G.Skill" },
-    { "name": "Corsair Vengeance LPX 16GB DDR4-3200", "price": 3690, "performance": 77, "brand": "Corsair" },
-    { "name": "G.Skill Ripjaws V 16GB DDR4-3200", "price": 3490, "performance": 76, "brand": "G.Skill" },
-    { "name": "Corsair Vengeance 16GB DDR5-5200", "price": 5490, "performance": 78, "brand": "Corsair" },
-    { "name": "G.Skill Flare X5 16GB DDR5-5200", "price": 5290, "performance": 77, "brand": "G.Skill" }
+
+  "motherboards": [
+    {
+      "id": "mb_1",
+      "name": "B450M DS3H",
+      "socket": "AM4",
+      "form_factor": "Micro-ATX",
+      "ram_type": "DDR4",
+      "ram_slots": 4,
+      "max_ram_speed": 3600,
+      "m2_slots": 1,
+      "sata_ports": 4,
+      "price": 4500
+    },
+    {
+      "id": "mb_2",
+      "name": "B550M DS3H",
+      "socket": "AM4",
+      "form_factor": "Micro-ATX",
+      "ram_type": "DDR4",
+      "ram_slots": 4,
+      "max_ram_speed": 4733,
+      "m2_slots": 2,
+      "sata_ports": 4,
+      "price": 6500
+    },
+    {
+      "id": "mb_3",
+      "name": "ASUS X570",
+      "socket": "AM4",
+      "form_factor": "ATX",
+      "ram_type": "DDR4",
+      "ram_slots": 4,
+      "max_ram_speed": 5100,
+      "m2_slots": 3,
+      "sata_ports": 6,
+      "price": 12500
+    },
+    {
+      "id": "mb_4",
+      "name": "MSI B660M",
+      "socket": "LGA1700",
+      "form_factor": "Micro-ATX",
+      "ram_type": "DDR4",
+      "ram_slots": 4,
+      "max_ram_speed": 5333,
+      "m2_slots": 2,
+      "sata_ports": 4,
+      "price": 8500
+    },
+    {
+      "id": "mb_5",
+      "name": "ASRock H610M",
+      "socket": "LGA1700",
+      "form_factor": "Micro-ATX",
+      "ram_type": "DDR4",
+      "ram_slots": 2,
+      "max_ram_speed": 3200,
+      "m2_slots": 1,
+      "sata_ports": 4,
+      "price": 5200
+    },
+    {
+      "id": "mb_6",
+      "name": "Gigabyte Z690",
+      "socket": "LGA1700",
+      "form_factor": "ATX",
+      "ram_type": "DDR5",
+      "ram_slots": 4,
+      "max_ram_speed": 6400,
+      "m2_slots": 4,
+      "sata_ports": 6,
+      "price": 18000
+    }
   ],
-  "Storage": [
-    { "name": "Samsung 990 Pro 2TB NVMe", "price": 11490, "performance": 96, "brand": "Samsung" },
-    { "name": "Samsung 980 Pro 2TB NVMe", "price": 10290, "performance": 93, "brand": "Samsung" },
-    { "name": "Western Digital Black SN850X 2TB", "price": 10690, "performance": 94, "brand": "Western Digital" },
-    { "name": "Western Digital Black SN770 2TB", "price": 7690, "performance": 88, "brand": "Western Digital" },
-    { "name": "Samsung 970 EVO Plus 1TB", "price": 5390, "performance": 86, "brand": "Samsung" },
-    { "name": "Western Digital Blue SN580 1TB", "price": 4290, "performance": 83, "brand": "Western Digital" },
-    { "name": "Samsung 870 EVO 1TB SATA", "price": 4290, "performance": 80, "brand": "Samsung" },
-    { "name": "Western Digital Blue 1TB SATA", "price": 3290, "performance": 75, "brand": "Western Digital" },
-    { "name": "Samsung 990 EVO 1TB", "price": 6090, "performance": 89, "brand": "Samsung" },
-    { "name": "Western Digital Green SN350 1TB", "price": 3590, "performance": 74, "brand": "Western Digital" }
+
+  "rams": [
+    {
+      "id": "ram_1",
+      "name": "8GB DDR4 2666MHz",
+      "type": "DDR4",
+      "capacity": 8,
+      "speed": 2666,
+      "modules": 1,
+      "price": 1800
+    },
+    {
+      "id": "ram_2",
+      "name": "16GB DDR4 3200MHz",
+      "type": "DDR4",
+      "capacity": 16,
+      "speed": 3200,
+      "modules": 2,
+      "price": 3500
+    },
+    {
+      "id": "ram_3",
+      "name": "32GB DDR4 3600MHz",
+      "type": "DDR4",
+      "capacity": 32,
+      "speed": 3600,
+      "modules": 2,
+      "price": 6500
+    },
+    {
+      "id": "ram_4",
+      "name": "16GB DDR5 5200MHz",
+      "type": "DDR5",
+      "capacity": 16,
+      "speed": 5200,
+      "modules": 2,
+      "price": 6800
+    },
+    {
+      "id": "ram_5",
+      "name": "32GB DDR5 6000MHz",
+      "type": "DDR5",
+      "capacity": 32,
+      "speed": 6000,
+      "modules": 2,
+      "price": 11000
+    }
   ],
-  "Motherboard": [
-    { "name": "AMD ROG Crosshair X670E Hero", "price": 34950, "performance": 95, "brand": "ASUS" },
-    { "name": "Intel ROG Maximus Z790 Hero", "price": 33950, "performance": 94, "brand": "ASUS" },
-    { "name": "AMD MSI MPG X670E Carbon WiFi", "price": 29950, "performance": 92, "brand": "MSI" },
-    { "name": "Intel MSI MPG Z790 Carbon WiFi", "price": 29450, "performance": 91, "brand": "MSI" },
-    { "name": "AMD ASUS TUF Gaming B650-PLUS", "price": 15950, "performance": 88, "brand": "ASUS" },
-    { "name": "Intel ASUS TUF Gaming Z790-PLUS", "price": 16950, "performance": 87, "brand": "ASUS" },
-    { "name": "AMD MSI MAG B650 Tomahawk", "price": 14950, "performance": 86, "brand": "MSI" },
-    { "name": "Intel MSI PRO Z790-A WiFi", "price": 15450, "performance": 85, "brand": "MSI" },
-    { "name": "AMD ASUS Prime B550M-A", "price": 6890, "performance": 80, "brand": "ASUS" },
-    { "name": "Intel MSI B760M Mortar WiFi", "price": 10290, "performance": 82, "brand": "MSI" }
+
+  "storages": [
+    {
+      "id": "sto_1",
+      "name": "240GB SATA SSD",
+      "type": "SATA",
+      "capacity": 240,
+      "price": 1500
+    },
+    {
+      "id": "sto_2",
+      "name": "500GB SATA SSD",
+      "type": "SATA",
+      "capacity": 500,
+      "price": 2500
+    },
+    {
+      "id": "sto_3",
+      "name": "1TB SATA SSD",
+      "type": "SATA",
+      "capacity": 1000,
+      "price": 4200
+    },
+    {
+      "id": "sto_4",
+      "name": "500GB NVMe SSD",
+      "type": "NVMe",
+      "capacity": 500,
+      "price": 3200
+    },
+    {
+      "id": "sto_5",
+      "name": "1TB NVMe SSD",
+      "type": "NVMe",
+      "capacity": 1000,
+      "price": 4200
+    },
+    {
+      "id": "sto_6",
+      "name": "2TB NVMe SSD",
+      "type": "NVMe",
+      "capacity": 2000,
+      "price": 8500
+    },
+    {
+      "id": "sto_7",
+      "name": "1TB HDD",
+      "type": "SATA",
+      "capacity": 1000,
+      "price": 2200
+    },
+    {
+      "id": "sto_8",
+      "name": "2TB HDD",
+      "type": "SATA",
+      "capacity": 2000,
+      "price": 3200
+    }
   ],
-  "PSU": [
-    { "name": "Corsair AX1600i", "price": 30950, "performance": 2400, "brand": "Corsair" },
-    { "name": "EVGA SuperNOVA 1600 T2", "price": 28690, "performance": 2300, "brand": "EVGA" },
-    { "name": "Corsair HX1500i", "price": 22450, "performance": 2200, "brand": "Corsair" },
-    { "name": "EVGA SuperNOVA 1300 GT", "price": 14950, "performance": 2100, "brand": "EVGA" },
-    { "name": "Corsair RM1200x Shift", "price": 13990, "performance": 2000, "brand": "Corsair" },
-    { "name": "EVGA SuperNOVA 1200 P3", "price": 16490, "performance": 1950, "brand": "EVGA" },
-    { "name": "Corsair RM1000x", "price": 10490, "performance": 1850, "brand": "Corsair" },
-    { "name": "EVGA SuperNOVA 1000 G6", "price": 9990, "performance": 1800, "brand": "EVGA" },
-    { "name": "Corsair RM850e", "price": 7290, "performance": 1700, "brand": "Corsair" },
-    { "name": "EVGA SuperNOVA 850 GT", "price": 6990, "performance": 1650, "brand": "EVGA" }
+
+  "psus": [
+    {
+      "id": "psu_1",
+      "name": "450W Bronze PSU",
+      "wattage": 450,
+      "connectors": ["PCIe 6-pin"],
+      "price": 2200
+    },
+    {
+      "id": "psu_2",
+      "name": "550W Bronze PSU",
+      "wattage": 550,
+      "connectors": ["PCIe 8-pin"],
+      "price": 3200
+    },
+    {
+      "id": "psu_3",
+      "name": "650W Bronze PSU",
+      "wattage": 650,
+      "connectors": ["PCIe 8-pin"],
+      "price": 4200
+    },
+    {
+      "id": "psu_4",
+      "name": "650W Gold PSU",
+      "wattage": 650,
+      "connectors": ["PCIe 8-pin", "PCIe 6-pin"],
+      "price": 5200
+    },
+    {
+      "id": "psu_5",
+      "name": "750W Gold PSU",
+      "wattage": 750,
+      "connectors": ["PCIe 8-pin", "PCIe 6-pin"],
+      "price": 7200
+    },
+    {
+      "id": "psu_6",
+      "name": "850W Gold PSU",
+      "wattage": 850,
+      "connectors": ["PCIe 8-pin", "PCIe 6-pin"],
+      "price": 9200
+    }
   ],
-  "Case": [
-    { "name": "NZXT H9 Flow", "price": 9990, "performance": 92, "brand": "NZXT" },
-    { "name": "Cooler Master HAF 700", "price": 22950, "performance": 90, "brand": "Cooler Master" },
-    { "name": "NZXT H7 Flow", "price": 7990, "performance": 88, "brand": "NZXT" },
-    { "name": "Cooler Master MasterCase H500M", "price": 10950, "performance": 87, "brand": "Cooler Master" },
-    { "name": "NZXT H5 Flow", "price": 5890, "performance": 84, "brand": "NZXT" },
-    { "name": "Cooler Master TD500 Mesh", "price": 6290, "performance": 83, "brand": "Cooler Master" },
-    { "name": "NZXT H510 Flow", "price": 5290, "performance": 81, "brand": "NZXT" },
-    { "name": "Cooler Master MasterBox 520", "price": 4890, "performance": 80, "brand": "Cooler Master" },
-    { "name": "NZXT H510", "price": 4290, "performance": 78, "brand": "NZXT" },
-    { "name": "Cooler Master MasterBox Q300L", "price": 2990, "performance": 75, "brand": "Cooler Master" }
+
+  "cases": [
+    {
+      "id": "case_1",
+      "name": "Cooler Master Q300L",
+      "supported_form_factors": ["Micro-ATX"],
+      "max_gpu_length": 360,
+      "price": 3200
+    },
+    {
+      "id": "case_2",
+      "name": "NZXT H510",
+      "supported_form_factors": ["ATX", "Micro-ATX"],
+      "max_gpu_length": 381,
+      "price": 4500
+    },
+    {
+      "id": "case_3",
+      "name": "Corsair 4000D",
+      "supported_form_factors": ["ATX", "Micro-ATX"],
+      "max_gpu_length": 360,
+      "price": 6500
+    },
+    {
+      "id": "case_4",
+      "name": "Deepcool CH370",
+      "supported_form_factors": ["Micro-ATX"],
+      "max_gpu_length": 320,
+      "price": 3800
+    },
+    {
+      "id": "case_5",
+      "name": "Lian Li Lancool 215",
+      "supported_form_factors": ["ATX", "Micro-ATX"],
+      "max_gpu_length": 370,
+      "price": 5800
+    }
+  ],
+
+  "usage_keywords": [
+    {
+      "keywords": [
+        "valorant",
+        "csgo",
+        "league of legends",
+        "dota 2",
+        "esports"
+      ],
+      "usage": "Esports Gaming",
+      "focus": "Balanced"
+    },
+    {
+      "keywords": [
+        "cyberpunk",
+        "elden ring",
+        "aaa",
+        "high graphics",
+        "4k gaming"
+      ],
+      "usage": "AAA Gaming",
+      "focus": "GPU"
+    },
+    {
+      "keywords": [
+        "video editing",
+        "premiere pro",
+        "after effects",
+        "editing"
+      ],
+      "usage": "Video Editing",
+      "focus": "CPU"
+    },
+    {
+      "keywords": [
+        "blender",
+        "3d rendering",
+        "maya",
+        "rendering"
+      ],
+      "usage": "3D Rendering",
+      "focus": "CPU"
+    },
+    {
+      "keywords": [
+        "programming",
+        "coding",
+        "web development",
+        "android studio"
+      ],
+      "usage": "Programming",
+      "focus": "RAM"
+    },
+    {
+      "keywords": [
+        "office",
+        "excel",
+        "word",
+        "documents"
+      ],
+      "usage": "Office Work",
+      "focus": "Balanced"
+    }
   ]
 }

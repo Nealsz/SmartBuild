@@ -1,5 +1,5 @@
-import os
 import json
+import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -11,142 +11,273 @@ data_path = os.path.join(
 with open(data_path, "r") as f:
     components = json.load(f)
 
+
 def calculate_total(build):
 
-    return (
-        build["cpu"]["price"] +
-        build["gpu"]["price"] +
-        build["motherboard"]["price"] +
-        build["ram"]["price"] +
-        build["storage"][0]["price"] +
-        build["psu"]["price"] +
-        build["case"]["price"]
+    total = 0
+
+    for category in build:
+
+        preferred_component = build[category][0]
+
+        total += preferred_component["price"]
+
+    return total
+
+
+def get_alternatives(
+    category,
+    preferred_component,
+    build,
+    limit=3
+):
+
+    alternatives = []
+
+    for component in components[category]:
+
+        # Skip preferred component
+        if component["name"] == preferred_component["name"]:
+            continue
+
+        # CPU compatibility
+        if category == "cpus":
+
+            motherboard = build["motherboards"][0]
+
+            if component["socket"] != motherboard["socket"]:
+                continue
+
+        # Motherboard compatibility
+        elif category == "motherboards":
+
+            cpu = build["cpus"][0]
+
+            if component["socket"] != cpu["socket"]:
+                continue
+
+        # RAM compatibility
+        elif category == "rams":
+
+            motherboard = build["motherboards"][0]
+
+            if component["type"] != motherboard["ram_type"]:
+                continue
+
+        # PSU compatibility
+        elif category == "psus":
+
+            gpu = build["gpus"][0]
+
+            if component["wattage"] < gpu["recommended_psu"]:
+                continue
+
+        # CASE compatibility
+        elif category == "cases":
+
+            gpu = build["gpus"][0]
+
+            if component["max_gpu_length"] < gpu["length"]:
+                continue
+
+        component_copy = component.copy()
+
+        component_copy["preferred"] = False
+
+        alternatives.append(component_copy)
+
+        if len(alternatives) == limit:
+            break
+
+    return alternatives
+
+
+def select_build(
+    anchor_component,
+    focus,
+    min_budget,
+    max_budget
+):
+
+    build = {}
+
+    # =========================
+    # CPU
+    # =========================
+    if focus == "CPU":
+
+        cpu = anchor_component
+
+    else:
+
+        cpu = components["cpus"][0]
+
+    cpu = cpu.copy()
+
+    cpu["preferred"] = True
+
+    build["cpus"] = [cpu]
+
+    # =========================
+    # GPU
+    # =========================
+    if focus == "GPU":
+
+        gpu = anchor_component
+
+    else:
+
+        gpu = components["gpus"][0]
+
+    gpu = gpu.copy()
+
+    gpu["preferred"] = True
+
+    build["gpus"] = [gpu]
+
+    # =========================
+    # MOTHERBOARD
+    # =========================
+    motherboard = next(
+
+        (
+            m for m in components["motherboards"]
+
+            if m["socket"] == cpu["socket"]
+        ),
+
+        None
     )
 
-def select_build(anchor_component, focus, min_budget, max_budget):
+    if not motherboard:
 
-    best_build = None
+        return {
+            "error": "No compatible motherboard found."
+        }
 
-    cpus = components["cpus"]
-    gpus = components["gpus"]
+    motherboard = motherboard.copy()
 
-    motherboards = components["motherboards"]
-    rams = components["rams"]
-    storages = components["storages"]
-    psus = components["psus"]
-    cases = components["cases"]
+    motherboard["preferred"] = True
 
-    for cpu in cpus:
+    build["motherboards"] = [motherboard]
 
-        for gpu in gpus:
+    # =========================
+    # RAM
+    # =========================
+    ram = next(
 
-            # Motherboard compatibility
-            compatible_mbs = [
-                mb for mb in motherboards
-                if mb["socket"] == cpu["socket"]
-            ]
+        (
+            r for r in components["rams"]
 
-            if not compatible_mbs:
-                continue
+            if r["type"] == motherboard["ram_type"]
+        ),
 
-            motherboard = compatible_mbs[0]
+        None
+    )
 
-            # RAM compatibility
-            compatible_rams = [
-                ram for ram in rams
-                if ram["type"] == motherboard["ram_type"]
-            ]
+    if not ram:
 
-            if not compatible_rams:
-                continue
+        return {
+            "error": "No compatible RAM found."
+        }
 
-            # RAM selection
-            if focus == "RAM":
-                ram = max(
-                    compatible_rams,
-                    key=lambda x: x["capacity"]
-                )
-            else:
-                ram = compatible_rams[0]
+    ram = ram.copy()
 
-            # PSU compatibility
-            compatible_psus = [
-                psu for psu in psus
-                if psu["wattage"]
-                >= gpu["recommended_psu"]
-            ]
+    ram["preferred"] = True
 
-            if not compatible_psus:
-                continue
+    build["rams"] = [ram]
 
-            psu = compatible_psus[0]
+    # =========================
+    # STORAGE
+    # =========================
+    storage = components["storages"][0].copy()
 
-            # CASE compatibility
-            compatible_cases = [
-                c for c in cases
-                if motherboard["form_factor"]
-                in c["supported_form_factors"]
-                and gpu["length"]
-                <= c["max_gpu_length"]
-            ]
+    storage["preferred"] = True
 
-            if not compatible_cases:
-                continue
+    build["storages"] = [storage]
 
-            case = compatible_cases[0]
+    # =========================
+    # PSU
+    # =========================
+    psu = next(
 
-            # Storage
-            storage = storages[0]
+        (
+            p for p in components["psus"]
 
-            build = {
-                "cpu": cpu,
-                "gpu": gpu,
-                "motherboard": motherboard,
-                "ram": ram,
-                "storage": [storage],
-                "psu": psu,
-                "case": case
-            }
+            if p["wattage"] >= gpu["recommended_psu"]
+        ),
 
-            total_price = calculate_total(build)
+        None
+    )
 
-            build["total_price"] = total_price
+    if not psu:
 
-            # BUDGET RANGE FILTER
-            if (
-                total_price >= min_budget
-                and total_price <= max_budget
-            ):
+        return {
+            "error": "No compatible PSU found."
+        }
 
-                best_build = build
+    psu = psu.copy()
 
-                # GPU-focused scoring
-                if focus == "GPU":
+    psu["preferred"] = True
 
-                    best_build["score"] = (
-                        gpu["gpu_score"] * 0.7
-                        + cpu["cpu_score"] * 0.3
-                    )
+    build["psus"] = [psu]
 
-                # CPU-focused scoring
-                elif focus == "CPU":
+    # =========================
+    # CASE
+    # =========================
+    case = next(
 
-                    best_build["score"] = (
-                        cpu["cpu_score"] * 0.7
-                        + gpu["gpu_score"] * 0.3
-                    )
+        (
+            c for c in components["cases"]
 
-                # Balanced scoring
-                else:
+            if c["max_gpu_length"] >= gpu["length"]
+        ),
 
-                    best_build["score"] = (
-                        cpu["cpu_score"] * 0.5
-                        + gpu["gpu_score"] * 0.5
-                    )
+        None
+    )
 
-    if best_build:
-        return best_build
+    if not case:
 
-    return {
-        "error": "No compatible build found within budget range"
-    }
+        return {
+            "error": "No compatible case found."
+        }
+
+    case = case.copy()
+
+    case["preferred"] = True
+
+    build["cases"] = [case]
+
+    # =========================
+    # ADD ALTERNATIVES
+    # =========================
+    for category in build:
+
+        preferred = build[category][0]
+
+        alternatives = get_alternatives(
+            category,
+            preferred,
+            build
+        )
+
+        build[category].extend(alternatives)
+
+    # =========================
+    # BUDGET VALIDATION
+    # =========================
+    total_price = calculate_total(build)
+
+    if total_price < min_budget:
+
+        return {
+            "error": "Build is below minimum budget."
+        }
+
+    if total_price > max_budget:
+
+        return {
+            "error": "Build exceeds maximum budget."
+        }
+
+    return build

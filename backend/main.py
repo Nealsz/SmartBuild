@@ -7,7 +7,6 @@ from services.recommender import recommend_component
 from services.selector import select_build
 from services.compatibility import validate_build
 from services.requirement_validator import validate_requirements
-from services.alternatives import get_component_alternatives
 
 app = FastAPI()
 
@@ -30,7 +29,7 @@ def generate_build(user: UserInput):
         focus
     )
 
-    # STEP 3 — Generate Compatible Build
+    # STEP 3 — Generate Build
     build = select_build(
         anchor_component,
         focus,
@@ -38,7 +37,7 @@ def generate_build(user: UserInput):
         user.max_budget
     )
 
-    # HANDLE NO BUILD FOUND
+    # HANDLE NO BUILD
     if "error" in build:
 
         return {
@@ -49,30 +48,20 @@ def generate_build(user: UserInput):
     # STEP 4 — Compatibility Validation
     compatibility = validate_build(build)
 
-    # STEP 5 — Budget / Requirement Validation
+    # STEP 5 — Requirement Validation
     fit = validate_requirements(
         build,
         user.min_budget,
         user.max_budget
     )
 
-    # STEP 6 — Generate Alternative Options
-    alternatives = get_component_alternatives(
-        build,
-        user.min_budget,
-        user.max_budget
-    )
-
-    # FINAL RESPONSE
     return {
 
         "classification": classification,
 
         "anchor_component": anchor_component,
 
-        "build": build,
-
-        "alternatives": alternatives,
+        "components": build,
 
         "compatibility": compatibility,
 

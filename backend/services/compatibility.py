@@ -1,39 +1,53 @@
 def validate_build(build):
 
-    errors = []
+    issues = []
 
-    cpu = build["cpu"]
-    motherboard = build["motherboard"]
-    ram = build["ram"]
-    gpu = build["gpu"]
-    psu = build["psu"]
-    case = build["case"]
+    cpu = build["cpus"][0]
+    motherboard = build["motherboards"][0]
+    ram = build["rams"][0]
+    gpu = build["gpus"][0]
+    psu = build["psus"][0]
+    case = build["cases"][0]
 
+    # =========================
     # CPU ↔ Motherboard
+    # =========================
     if cpu["socket"] != motherboard["socket"]:
-        errors.append(
-            "CPU socket incompatible with motherboard"
+
+        issues.append(
+            "CPU and motherboard sockets do not match."
         )
 
+    # =========================
     # RAM ↔ Motherboard
+    # =========================
     if ram["type"] != motherboard["ram_type"]:
-        errors.append(
-            "RAM type incompatible with motherboard"
+
+        issues.append(
+            "RAM type incompatible with motherboard."
         )
 
-    # PSU ↔ GPU
+    # =========================
+    # GPU ↔ PSU
+    # =========================
     if psu["wattage"] < gpu["recommended_psu"]:
-        errors.append(
-            "PSU wattage insufficient"
+
+        issues.append(
+            "PSU wattage insufficient for GPU."
         )
 
-    # CASE ↔ GPU
-    if gpu["length"] > case["max_gpu_length"]:
-        errors.append(
-            "GPU too large for case"
+    # =========================
+    # GPU ↔ CASE
+    # =========================
+    if case["max_gpu_length"] < gpu["length"]:
+
+        issues.append(
+            "GPU does not fit inside case."
         )
 
     return {
-        "isValid": len(errors) == 0,
-        "errors": errors
+
+        "isCompatible": len(issues) == 0,
+
+        "issues": issues
     }

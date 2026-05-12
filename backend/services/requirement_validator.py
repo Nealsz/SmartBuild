@@ -4,27 +4,23 @@ def validate_requirements(
     max_budget
 ):
 
-    score = 100
-    issues = []
+    total_price = 0
 
-    if build["total_price"] < min_budget:
+    for category in build:
 
-        score -= 20
+        preferred_component = build[category][0]
 
-        issues.append(
-            "Build below minimum budget"
-        )
-
-    if build["total_price"] > max_budget:
-
-        score -= 30
-
-        issues.append(
-            "Build exceeds maximum budget"
-        )
+        total_price += preferred_component["price"]
 
     return {
-        "isFit": score >= 70,
-        "score": score,
-        "issues": issues
+
+        "isFit": (
+            min_budget <= total_price <= max_budget
+        ),
+
+        "total_price": total_price,
+
+        "min_budget": min_budget,
+
+        "max_budget": max_budget
     }

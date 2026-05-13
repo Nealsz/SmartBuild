@@ -4,18 +4,18 @@ export default function Home() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-32 top-24 h-80 w-80 rounded-full bg-emerald-400/20 blur-3xl" />
-        <div className="absolute right-[-60px] top-[-40px] h-[420px] w-[420px] rounded-full bg-cyan-400/20 blur-[120px]" />
-        <div className="absolute bottom-[-80px] left-1/3 h-80 w-80 rounded-full bg-sky-500/10 blur-3xl" />
+        <div className="absolute -left-32 top-24 h-80 w-80 rounded-full bg-amber-400/20 blur-3xl" />
+        <div className="absolute right-[-60px] top-[-40px] h-[420px] w-[420px] rounded-full bg-blue-400/20 blur-[120px]" />
+        <div className="absolute bottom-[-80px] left-1/3 h-80 w-80 rounded-full bg-indigo-500/10 blur-3xl" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />
-        <div className="absolute inset-0 opacity-60 [background:linear-gradient(120deg,rgba(16,185,129,0.06),transparent_40%),linear-gradient(240deg,rgba(56,189,248,0.08),transparent_50%)]" />
+        <div className="absolute inset-0 opacity-60 [background:linear-gradient(120deg,rgba(251,191,36,0.08),transparent_40%),linear-gradient(240deg,rgba(59,130,246,0.1),transparent_50%)]" />
       </div>
 
       <main className="relative mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-24 pt-12">
         <header className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div className="flex flex-col gap-5">
-            <div className="flex items-center gap-3 text-xs uppercase tracking-[0.35em] text-emerald-200/80">
-              <span className="h-2 w-2 rounded-full bg-emerald-300" />
+            <div className="flex items-center gap-3 text-xs uppercase tracking-[0.35em] text-amber-200/80">
+              <span className="h-2 w-2 rounded-full bg-amber-300" />
               SmartBuild Decision Support
             </div>
             <h1 className="font-heading text-4xl leading-tight tracking-tight sm:text-5xl md:text-6xl">
@@ -29,7 +29,7 @@ export default function Home() {
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/recommendation"
-                className="rounded-full bg-emerald-300 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-400/30"
+                className="rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/30"
               >
                 Launch Simulation
               </Link>
@@ -50,9 +50,41 @@ export default function Home() {
           <div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur">
             <div className="flex items-center justify-between">
               <h2 className="font-heading text-2xl">What SmartBuild does</h2>
-              <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs uppercase tracking-widest text-cyan-200">
+              <span className="rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1 text-xs uppercase tracking-widest text-blue-200">
                 Overview
               </span>
+            </div>
+            <div className="mt-6 rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-5">
+              <div className="flex items-center justify-between text-xs text-white/60">
+                <span>Simulation preview</span>
+                <span className="text-white/40">Live mock</span>
+              </div>
+              <div className="mt-4 grid gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <div className="flex items-center justify-between text-xs text-white/60">
+                    <span>Budget range</span>
+                    <span className="text-white">PHP 30k - 65k</span>
+                  </div>
+                  <div className="mt-2 h-2 w-full rounded-full bg-white/10">
+                    <div className="h-full w-3/4 rounded-full bg-gradient-to-r from-amber-300/80 via-amber-200/70 to-blue-300/80" />
+                  </div>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    "CPU: Ryzen 5 5600",
+                    "GPU: RTX 4060",
+                    "RAM: 16GB DDR4",
+                    "Storage: 1TB NVMe",
+                  ].map((item) => (
+                    <div
+                      key={item}
+                      className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70"
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="mt-6 grid gap-4 text-sm">
               {
@@ -71,7 +103,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <div className="mt-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-emerald-100">
+            <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
               Simulation builds typically generate in 6 to 9 seconds.
             </div>
           </div>
@@ -106,8 +138,40 @@ export default function Home() {
           ))}
         </section>
 
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-8">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="font-heading text-2xl">How the simulation runs</h2>
+              <p className="mt-2 text-sm text-white/70">
+                A fast, transparent pipeline that mirrors how technicians build.
+              </p>
+            </div>
+            <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs uppercase tracking-widest text-amber-200">
+              Timeline
+            </span>
+          </div>
+          <div className="mt-6 grid gap-4 text-sm md:grid-cols-4">
+            {[
+              { label: "Input", detail: "Budget + usage" },
+              { label: "Allocate", detail: "Priority weights" },
+              { label: "Validate", detail: "Compatibility rules" },
+              { label: "Recommend", detail: "Build + notes" },
+            ].map((step) => (
+              <div
+                key={step.label}
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4"
+              >
+                <p className="text-xs uppercase tracking-[0.25em] text-white/40">
+                  {step.label}
+                </p>
+                <p className="mt-2 text-sm text-white/80">{step.detail}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-emerald-400/10 via-white/5 to-transparent p-8">
+          <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-amber-400/10 via-white/5 to-transparent p-8">
             <h2 className="font-heading text-2xl">Simulation flow</h2>
             <p className="mt-3 text-sm text-white/70">
               From user input to a verified build, the flow stays lightweight

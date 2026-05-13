@@ -1,0 +1,24 @@
+# Python-related files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+smartbuild-env/
+
+# Data files
+*.csv
+*.pkl
+
+# IDE-specific files
+.vscode/
+*.code-workspace
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+*.tmp

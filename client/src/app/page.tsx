@@ -88,7 +88,7 @@ export default function Home() {
                 [
                   "Picks the best parts that fit your budget.",
                   "Checks that every part works together before showing you the build.",
-                  "Finds the best value from available Philippine-market components.",
+                  "Finds the best value from a comprehensive database of components.",
                   "Gives you a clear, easy-to-understand parts list.",
                 ]
                   .map((item) => (

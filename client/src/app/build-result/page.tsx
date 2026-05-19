@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import html2canvas from "html2canvas-pro";
+import { jsPDF } from "jspdf";
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 type CompatDetail = {
@@ -78,6 +80,83 @@ const TIER_COLORS: Record<string, string> = {
 export default function BuildResultPage() {
   const [result, setResult] = useState<BuildResult | null>(null);
   const [input, setInput] = useState<UserInputSummary | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!contentRef.current) return;
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#020617", // slate-950
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+
+      // A4 dimensions in points (72 dpi)
+      const pdfWidth = 595.28;
+      const pdfHeight = 841.89;
+      const margin = 24;
+      const contentWidth = pdfWidth - margin * 2;
+      const scaledHeight = (imgHeight * contentWidth) / imgWidth;
+      const contentHeight = pdfHeight - margin * 2;
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "a4",
+      });
+
+      // Add background to every page
+      let yOffset = 0;
+      let pageNum = 0;
+
+      while (yOffset < scaledHeight) {
+        if (pageNum > 0) pdf.addPage();
+
+        // Dark background fill
+        pdf.setFillColor(2, 6, 23); // slate-950
+        pdf.rect(0, 0, pdfWidth, pdfHeight, "F");
+
+        pdf.addImage(
+          imgData,
+          "PNG",
+          margin,
+          margin - yOffset,
+          contentWidth,
+          scaledHeight
+        );
+
+        yOffset += contentHeight;
+        pageNum++;
+      }
+
+      // Footer on each page
+      const totalPages = pdf.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(255, 255, 255);
+        pdf.text(
+          `SmartBuild — Page ${i} of ${totalPages}`,
+          pdfWidth / 2,
+          pdfHeight - 12,
+          { align: "center" }
+        );
+      }
+
+      pdf.save("SmartBuild-Recommendation.pdf");
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+    } finally {
+      setDownloading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("smartbuild_result");
@@ -117,7 +196,7 @@ export default function BuildResultPage() {
   const compat = result.compatibility;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
+    <div ref={contentRef} className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
       {/* Background effects */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -left-16 top-16 h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl" />
@@ -378,6 +457,33 @@ export default function BuildResultPage() {
                 a different build.
               </p>
               <div className="mt-5 flex flex-col gap-3">
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={downloading}
+                  className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:shadow-emerald-500/40 hover:brightness-110 disabled:cursor-wait disabled:opacity-70"
+                >
+                  <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                  <span className="relative flex items-center justify-center gap-2">
+                    {downloading ? (
+                      <>
+                        <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Generating PDF…
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        Download as PDF
+                      </>
+                    )}
+                  </span>
+                </button>
                 <Link
                   href="/user-input"
                   className="rounded-2xl bg-white px-5 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-white/90"

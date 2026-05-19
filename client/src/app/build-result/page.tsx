@@ -194,7 +194,7 @@ export default function BuildResultPage() {
           <div className="absolute -left-16 top-16 h-72 w-72 rounded-full bg-amber-400/20 blur-3xl" />
           <div className="absolute right-0 top-0 h-[420px] w-[420px] rounded-full bg-blue-400/20 blur-[120px]" />
         </div>
-        <div className="relative rounded-3xl border border-white/10 bg-white/5 p-10 text-center backdrop-blur">
+        <div className="relative mx-4 rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-10 text-center backdrop-blur">
           <h2 className="font-heading text-2xl">No build result found</h2>
           <p className="mt-3 text-sm text-white/60">
             You haven&apos;t generated a build yet. Start by providing your
@@ -227,7 +227,7 @@ export default function BuildResultPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />
       </div>
 
-      <main className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-12">
+      <main className="relative mx-auto flex w-full max-w-6xl flex-col gap-8 sm:gap-10 px-4 sm:px-6 md:px-8 pb-24 pt-8 sm:pt-12">
         {/* Header */}
         <header className="flex flex-col gap-4">
           <Link
@@ -253,8 +253,8 @@ export default function BuildResultPage() {
 
         {/* ─── Input Summary ──────────────────────────────────── */}
         {input && (
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-            <div className="flex items-center justify-between">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-6 backdrop-blur">
+            <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-3">
               <h2 className="font-heading text-lg">Your Requirements</h2>
               <span className="rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1 text-xs uppercase tracking-widest text-blue-200">
                 Summary
@@ -340,8 +340,8 @@ export default function BuildResultPage() {
           const allPassed = EVAL_PARAMS.every((p) => ev[p.key].passed);
 
           return (
-            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/5 to-transparent p-7 backdrop-blur shadow-[0_20px_80px_-40px_rgba(139,92,246,0.25)]">
-              <div className="flex items-center justify-between">
+            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/5 to-transparent p-5 sm:p-7 backdrop-blur shadow-[0_20px_80px_-40px_rgba(139,92,246,0.25)]">
+              <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="font-heading text-2xl">System Evaluation</h2>
                   <p className="mt-1 text-xs text-white/50">
@@ -359,7 +359,7 @@ export default function BuildResultPage() {
                 </span>
               </div>
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
                 {EVAL_PARAMS.map((param) => {
                   const metric = ev[param.key];
                   const passed = metric.passed;
@@ -425,8 +425,8 @@ export default function BuildResultPage() {
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           {/* ─── Component Breakdown ─────────────────────────── */}
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-7 shadow-[0_30px_120px_-80px_rgba(16,185,129,0.5)] backdrop-blur">
-            <div className="flex items-center justify-between">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7 shadow-[0_30px_120px_-80px_rgba(16,185,129,0.5)] backdrop-blur">
+            <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-3">
               <h2 className="font-heading text-2xl">Component Breakdown</h2>
               <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs uppercase tracking-widest text-emerald-200">
                 Build
@@ -479,7 +479,7 @@ export default function BuildResultPage() {
 
             {/* ─── Total Cost ────────────────────────────────── */}
             <div className="mt-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-5">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-widest text-emerald-200/70">
                     Total Estimated Cost
@@ -509,8 +509,8 @@ export default function BuildResultPage() {
           {/* ─── Right Column: Compatibility & Actions ───────── */}
           <div className="flex flex-col gap-6">
             {/* Compatibility Check */}
-            <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 via-white/5 to-transparent p-7">
-              <div className="flex items-center justify-between">
+            <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 via-white/5 to-transparent p-5 sm:p-7">
+              <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-3">
                 <h2 className="font-heading text-2xl">Compatibility Check</h2>
                 <span
                   className={`rounded-full border px-3 py-1 text-xs uppercase tracking-widest ${
@@ -586,14 +586,14 @@ export default function BuildResultPage() {
             </div>
 
             {/* Tier Predictions */}
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-7">
-              <div className="flex items-center justify-between">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7">
+              <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-3">
                 <h2 className="font-heading text-lg">AI Tier Predictions</h2>
                 <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs uppercase tracking-widest text-cyan-200">
                   Model
                 </span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {Object.entries(result.tiers).map(([key, tier]) => {
                   const tierClass = TIER_COLORS[tier] ?? TIER_COLORS.mid;
                   return (
@@ -616,7 +616,7 @@ export default function BuildResultPage() {
             </div>
 
             {/* Actions */}
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-7" data-html2canvas-ignore="true">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7" data-html2canvas-ignore="true">
               <h2 className="font-heading text-lg">What&apos;s next?</h2>
               <p className="mt-2 text-xs text-white/60">
                 Not satisfied? Go back and adjust your requirements to generate

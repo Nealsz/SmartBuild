@@ -6,7 +6,7 @@ It collects user requirements, generates a component list, and reports compatibi
 ## Tech Stack
 
 - Backend: FastAPI (Python)
-- Frontend: React + TypeScript + Vite
+- Frontend: React + Next.js (TypeScript)
 - Model: Random Forest (served by backend)
 
 ## Prerequisites
@@ -43,40 +43,43 @@ source smartbuild-env/bin/activate
 ### 3) Install backend dependencies
 
 ```bash
+cd backend
 pip install -r requirements.txt
+cd ..
 ```
 
 ### 4) Install frontend dependencies
 
 ```bash
-cd frontend
+cd client
 npm install
 cd ..
 ```
 
 ## Run the Project
 
-Run backend and frontend in separate terminals.
+Run backend and frontend in separate terminals. Ensure your Python virtual environment is activated in the backend terminal.
 
 ### Backend (FastAPI)
 
 ```bash
-uvicorn backend.main:app --reload
+cd backend
+uvicorn main:app --reload
 ```
 
 Backend URLs:
 - API root: `http://127.0.0.1:8000/`
 - API docs: `http://127.0.0.1:8000/docs`
 
-### Frontend (Vite)
+### Frontend (Next.js)
 
 ```bash
-cd frontend
+cd client
 npm run dev
 ```
 
 Frontend URL:
-- App: `http://127.0.0.1:5173/`
+- App: `http://localhost:3000/`
 
 ## Frontend Routes
 
@@ -86,21 +89,21 @@ Frontend URL:
 
 ## Current User Flow
 
-1. Open landing page.
+1. Open landing page (`http://localhost:3000/`).
 2. Click **Start recommendation**.
 3. Fill required fields on **User Input**:
-   - Minimum budget
-   - Maximum budget
-   - Usage
-   - Priority components (at least one)
-4. (Optional) Set brand preferences per component.
-5. Click **Generate Build** to open `/build-result`.
+   - Minimum budget & Maximum budget
+   - Primary Activity (e.g., Gaming, Video Editing)
+   - Secondary Activity (Optional)
+   - Longevity expectation
+   - Open to future upgrades (Yes/No)
+4. Click **Generate Build** to calculate and open `/build-result`.
+5. Review the recommended custom PC component list along with compatibility reports.
 
 ## Build Frontend for Production
 
 ```bash
-cd frontend
+cd client
 npm run build
+npm start
 ```
-
-Build output is generated in `frontend/dist`.

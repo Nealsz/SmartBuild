@@ -8,8 +8,8 @@ __pycache__/
 smartbuild-env/
 
 # Data files
-*.csv
-*.pkl
+# *.csv
+# *.pkl
 
 # IDE-specific files
 .vscode/

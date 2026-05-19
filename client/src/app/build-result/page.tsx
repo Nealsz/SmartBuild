@@ -218,7 +218,7 @@ export default function BuildResultPage() {
   const compat = result.compatibility;
 
   return (
-    <div ref={contentRef} className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
+    <div ref={contentRef} className="relative min-h-screen overflow-x-hidden bg-slate-950 text-white">
       {/* Background effects */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -left-16 top-16 h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl" />
@@ -270,10 +270,10 @@ export default function BuildResultPage() {
               ].map((item) => (
                 <div
                   key={item.label}
-                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5"
                 >
                   <span className="text-white/50">{item.label}</span>
-                  <span className="text-white font-medium">{item.value}</span>
+                  <span className="text-white font-medium break-words text-left sm:text-right w-full sm:w-auto">{item.value}</span>
                 </div>
               ))}
             </div>
@@ -565,14 +565,12 @@ export default function BuildResultPage() {
                       key={i}
                       className={`rounded-2xl border ${sc.border} ${sc.bg} px-4 py-3`}
                     >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${sc.dot}`}
-                        />
-                        <span className={`text-xs font-semibold ${sc.text}`}>
+                      <div className="flex items-start gap-2">
+                        <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${sc.dot}`} />
+                        <span className={`text-xs font-semibold shrink-0 ${sc.text}`}>
                           {d.status}
                         </span>
-                        <span className="text-xs text-white/60">
+                        <span className="text-xs text-white/60 break-words">
                           {d.rule}
                         </span>
                       </div>
@@ -605,7 +603,7 @@ export default function BuildResultPage() {
                         {key.replace("_", " ")}
                       </span>
                       <span
-                        className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider ${tierClass}`}
+                        className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider shrink-0 ${tierClass}`}
                       >
                         {tier}
                       </span>

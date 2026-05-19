@@ -25,12 +25,34 @@ type ComponentData = Record<string, unknown> & {
   price?: number;
 };
 
+type EvalMetric = {
+  score: number;
+  threshold: number;
+  passed: boolean;
+  details?: Record<string, number | Record<string, unknown>>;
+  utilization_pct?: number;
+  within_range?: boolean;
+  checks_passed?: number;
+  total_checks?: number;
+  score_seconds?: number;
+  threshold_seconds?: number;
+};
+
+type Evaluation = {
+  prediction_accuracy: EvalMetric;
+  budget_fit: EvalMetric;
+  intended_use_alignment: EvalMetric;
+  compatibility_reliability: EvalMetric;
+  recommendation_speed: EvalMetric;
+};
+
 type BuildResult = {
   tiers: Record<string, string>;
   build: Record<string, ComponentData | null>;
   total: number;
   budget_fit: boolean;
   compatibility: Compatibility;
+  evaluation?: Evaluation;
 };
 
 type UserInputSummary = {
@@ -257,6 +279,149 @@ export default function BuildResultPage() {
             </div>
           </div>
         )}
+
+        {/* ─── System Evaluation ────────────────────────────── */}
+        {result.evaluation && (() => {
+          const ev = result.evaluation;
+          const EVAL_PARAMS = [
+            {
+              key: "prediction_accuracy" as const,
+              label: "Prediction Accuracy",
+              icon: "🎯",
+              description: "RF model confidence in tier predictions",
+              format: (m: EvalMetric) => `${m.score}%`,
+              thresholdLabel: (m: EvalMetric) => `≥ ${m.threshold}%`,
+              barPct: (m: EvalMetric) => Math.min(m.score, 100),
+            },
+            {
+              key: "budget_fit" as const,
+              label: "Budget Fit",
+              icon: "💰",
+              description: "Build total within user budget range",
+              format: (m: EvalMetric) => `${m.score}%`,
+              thresholdLabel: (m: EvalMetric) => `≥ ${m.threshold}%`,
+              barPct: (m: EvalMetric) => Math.min(m.score, 100),
+            },
+            {
+              key: "intended_use_alignment" as const,
+              label: "Intended-Use Alignment",
+              icon: "🧭",
+              description: "Tier allocation matches activity demand",
+              format: (m: EvalMetric) => `${m.score}%`,
+              thresholdLabel: (m: EvalMetric) => `≥ ${m.threshold}%`,
+              barPct: (m: EvalMetric) => Math.min(m.score, 100),
+            },
+            {
+              key: "compatibility_reliability" as const,
+              label: "Compatibility Reliability",
+              icon: "🔗",
+              description: "Hardware compatibility checks passed",
+              format: (m: EvalMetric) =>
+                `${m.checks_passed ?? 0}/${m.total_checks ?? 0}`,
+              thresholdLabel: () => `100%`,
+              barPct: (m: EvalMetric) => Math.min(m.score, 100),
+            },
+            {
+              key: "recommendation_speed" as const,
+              label: "Recommendation Speed",
+              icon: "⚡",
+              description: "Pipeline execution time",
+              format: (m: EvalMetric) => `${m.score_seconds ?? 0}s`,
+              thresholdLabel: (m: EvalMetric) =>
+                `≤ ${m.threshold_seconds ?? 15}s`,
+              barPct: (m: EvalMetric) => {
+                const secs = m.score_seconds ?? 0;
+                const max = m.threshold_seconds ?? 15;
+                return Math.min(Math.max(0, (1 - secs / max) * 100), 100);
+              },
+            },
+          ];
+
+          const allPassed = EVAL_PARAMS.every((p) => ev[p.key].passed);
+
+          return (
+            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/5 to-transparent p-7 backdrop-blur shadow-[0_20px_80px_-40px_rgba(139,92,246,0.25)]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-heading text-2xl">System Evaluation</h2>
+                  <p className="mt-1 text-xs text-white/50">
+                    Automated assessment against the 5 key performance indicators
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-widest ${
+                    allPassed
+                      ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-200"
+                      : "border-amber-400/40 bg-amber-400/10 text-amber-200"
+                  }`}
+                >
+                  {allPassed ? "All Passed" : "Needs Attention"}
+                </span>
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                {EVAL_PARAMS.map((param) => {
+                  const metric = ev[param.key];
+                  const passed = metric.passed;
+                  const bar = param.barPct(metric);
+
+                  return (
+                    <div
+                      key={param.key}
+                      className={`group relative overflow-hidden rounded-2xl border p-4 transition-colors ${
+                        passed
+                          ? "border-emerald-400/20 bg-emerald-400/[0.04] hover:bg-emerald-400/[0.08]"
+                          : "border-red-400/20 bg-red-400/[0.04] hover:bg-red-400/[0.08]"
+                      }`}
+                    >
+                      {/* Icon */}
+                      <span className="text-xl leading-none">{param.icon}</span>
+
+                      {/* Label */}
+                      <p className="mt-2 text-[11px] font-medium uppercase tracking-wider text-white/60">
+                        {param.label}
+                      </p>
+
+                      {/* Score */}
+                      <p className="mt-1 font-heading text-2xl text-white">
+                        {param.format(metric)}
+                      </p>
+
+                      {/* Progress bar */}
+                      <div className="mt-3 h-1.5 rounded-full bg-white/10">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${
+                            passed ? "bg-emerald-400" : "bg-red-400"
+                          }`}
+                          style={{ width: `${bar}%` }}
+                        />
+                      </div>
+
+                      {/* Threshold & Status */}
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-[10px] text-white/40">
+                          {param.thresholdLabel(metric)}
+                        </span>
+                        <span
+                          className={`text-[10px] font-semibold ${
+                            passed ? "text-emerald-300" : "text-red-300"
+                          }`}
+                        >
+                          {passed ? "✓ PASS" : "✗ FAIL"}
+                        </span>
+                      </div>
+
+                      {/* Description tooltip on hover */}
+                      <p className="mt-1 text-[10px] text-white/30">
+                        {param.description}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           {/* ─── Component Breakdown ─────────────────────────── */}

@@ -283,14 +283,19 @@ def select_build(
     budgets    = {k: v * budget_mid for k, v in alloc.items()}
 
     # ── CPU ────────────────────────────────────────────────────────────────────
+    # Pre-filter: exclude CPUs with unknown/missing sockets (no motherboard match)
+    valid_cpus = dfs["cpu"][
+        dfs["cpu"]["socket"].astype(str).str.strip().ne("")
+        & ~dfs["cpu"]["socket"].astype(str).str.lower().isin(["unknown", "nan", "none"])
+    ].copy()
     lo, hi   = _tier_price_band("cpu", tiers.get("cpu", "mid"))
-    cpu_pool = dfs["cpu"][(dfs["cpu"]["price"] >= lo) & (dfs["cpu"]["price"] < hi)].copy()
+    cpu_pool = valid_cpus[(valid_cpus["price"] >= lo) & (valid_cpus["price"] < hi)].copy()
     if cpu_pool.empty:
-        cpu_pool = dfs["cpu"].copy()                     # fallback: all CPUs
+        cpu_pool = valid_cpus.copy()                     # fallback: all valid CPUs
     cpu_scored = _score_cpu(cpu_pool, intent, tier_mult)
     cpu_row    = _pick(cpu_scored, budgets["cpu"])
     if cpu_row is None:
-        cpu_row = _score_cpu(dfs["cpu"], intent, tier_mult).sort_values("price").iloc[0]
+        cpu_row = _score_cpu(valid_cpus, intent, tier_mult).sort_values("price").iloc[0]
 
     cpu_tdp  = float(cpu_row.get("tdp", 65))
     cpu_sock = str(cpu_row.get("socket", ""))

@@ -22,26 +22,26 @@ export default function Home() {
               Build compatible PCs faster with a data-driven guide.
             </h1>
             <p className="max-w-xl text-base leading-7 text-slate-200/80 sm:text-lg">
-              SmartBuild simulates full custom builds using a local dataset,
-              compatibility rules, and budget-aware scoring. Perfect for
-              technicians who need fast, consistent recommendations.
+              SmartBuild uses advanced machine learning (Random Forest model) to
+              recommend the most optimal and compatible PC components tailored
+              specifically to your needs and budget.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
-                href="/recommendation"
-                className="rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/30"
+                href="/user-input"
+                className="rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/30 transition hover:bg-amber-200"
               >
-                Launch Simulation
+                Start recommendation
               </Link>
               <Link
-                href="/recommendation"
-                className="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/90"
+                href="/user-input"
+                className="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/5"
               >
                 View Sample Build
               </Link>
             </div>
             <div className="flex flex-wrap gap-6 text-xs text-white/60">
-              <span>Offline demo</span>
+              <span>AI-powered recommendations</span>
               <span>Rule-based compatibility</span>
               <span>Local pricing focus</span>
             </div>
@@ -56,8 +56,8 @@ export default function Home() {
             </div>
             <div className="mt-6 rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-5">
               <div className="flex items-center justify-between text-xs text-white/60">
-                <span>Simulation preview</span>
-                <span className="text-white/40">Live mock</span>
+                <span>Recommendation preview</span>
+                <span className="text-white/40">Sample output</span>
               </div>
               <div className="mt-4 grid gap-3">
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
@@ -104,7 +104,7 @@ export default function Home() {
               ))}
             </div>
             <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
-              Simulation builds typically generate in 6 to 9 seconds.
+              AI builds typically generate in 6 to 9 seconds.
             </div>
           </div>
         </header>
@@ -141,21 +141,22 @@ export default function Home() {
         <section className="rounded-3xl border border-white/10 bg-white/5 p-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="font-heading text-2xl">How the simulation runs</h2>
+              <h2 className="font-heading text-2xl">How the AI recommendation works</h2>
               <p className="mt-2 text-sm text-white/70">
-                A fast, transparent pipeline that mirrors how technicians build.
+                A fast, transparent pipeline from your requirements to a validated build.
               </p>
             </div>
             <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs uppercase tracking-widest text-amber-200">
               Timeline
             </span>
           </div>
-          <div className="mt-6 grid gap-4 text-sm md:grid-cols-4">
+          <div className="mt-6 grid gap-4 text-sm md:grid-cols-5">
             {[
-              { label: "Input", detail: "Budget + usage" },
-              { label: "Allocate", detail: "Priority weights" },
+              { label: "Input", detail: "Budget + usage intent" },
+              { label: "Classify", detail: "AI intent weights" },
+              { label: "Predict", detail: "RF tier selection" },
               { label: "Validate", detail: "Compatibility rules" },
-              { label: "Recommend", detail: "Build + notes" },
+              { label: "Recommend", detail: "Build + cost" },
             ].map((step) => (
               <div
                 key={step.label}
@@ -172,17 +173,18 @@ export default function Home() {
 
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-amber-400/10 via-white/5 to-transparent p-8">
-            <h2 className="font-heading text-2xl">Simulation flow</h2>
+            <h2 className="font-heading text-2xl">What you provide</h2>
             <p className="mt-3 text-sm text-white/70">
-              From user input to a verified build, the flow stays lightweight
-              while capturing the steps technicians already follow.
+              The AI asks for a few key details to understand your requirements
+              and generate the best possible build.
             </p>
             <div className="mt-6 grid gap-4 text-sm text-white/75">
               {[
-                "1. Capture budget, usage intent, and priority.",
-                "2. Allocate spend across CPU, GPU, RAM, and storage.",
-                "3. Filter compatible parts and validate PSU + case fit.",
-                "4. Return a ranked build with notes and totals.",
+                "1. Budget range — minimum and maximum spend.",
+                "2. Primary activity — Gaming, Video Editing, 3D Modeling, etc.",
+                "3. Secondary activity (optional) — to balance the build further.",
+                "4. Expected longevity — 1–2, 3–5, or 5+ years.",
+                "5. Upgrade openness — future-proof with newer platforms?",
               ].map((step) => (
                 <div
                   key={step}
@@ -195,21 +197,21 @@ export default function Home() {
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
-            <h2 className="font-heading text-2xl">Ready to test it?</h2>
+            <h2 className="font-heading text-2xl">Ready to build?</h2>
             <p className="mt-3 text-sm text-white/70">
-              Try the simulation with mock data and preview the build output
-              before you wire up any backend services.
+              Start the recommendation process and get a complete, compatible PC
+              build tailored to your exact needs and budget.
             </p>
             <div className="mt-6 flex flex-col gap-3">
               <Link
-                href="/recommendation"
-                className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950"
+                href="/user-input"
+                className="rounded-2xl bg-white px-5 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-white/90"
               >
-                Open the recommendation lab
+                Start recommendation
               </Link>
               <Link
-                href="/recommendation"
-                className="rounded-2xl border border-white/20 px-5 py-3 text-sm font-semibold text-white/80"
+                href="/user-input"
+                className="rounded-2xl border border-white/20 px-5 py-3 text-center text-sm font-semibold text-white/80 transition hover:bg-white/5"
               >
                 View a sample output
               </Link>

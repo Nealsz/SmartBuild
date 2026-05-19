@@ -19,12 +19,11 @@ export default function Home() {
               SmartBuild Decision Support
             </div>
             <h1 className="font-heading text-4xl leading-tight tracking-tight sm:text-5xl md:text-6xl">
-              Build compatible PCs faster with a data-driven guide.
+              Get the right PC parts — no guesswork needed.
             </h1>
             <p className="max-w-xl text-base leading-7 text-slate-200/80 sm:text-lg">
-              SmartBuild uses advanced machine learning (Random Forest model) to
-              recommend the most optimal and compatible PC components tailored
-              specifically to your needs and budget.
+              Tell SmartBuild what you want to do and how much you can spend.
+              Our AI picks the best parts that work together and fit your budget.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
@@ -33,78 +32,47 @@ export default function Home() {
               >
                 Start recommendation
               </Link>
-              <Link
-                href="/user-input"
-                className="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/5"
-              >
-                View Sample Build
-              </Link>
+
             </div>
             <div className="flex flex-wrap gap-6 text-xs text-white/60">
-              <span>AI-powered recommendations</span>
-              <span>Rule-based compatibility</span>
-              <span>Local pricing focus</span>
+              <span>AI-powered picks</span>
+              <span>All parts guaranteed to fit</span>
+              <span>Philippine pricing</span>
             </div>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur">
             <div className="flex items-center justify-between">
-              <h2 className="font-heading text-2xl">What SmartBuild does</h2>
+              <h2 className="font-heading text-2xl">Quality Checks</h2>
               <span className="rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1 text-xs uppercase tracking-widest text-blue-200">
-                Overview
+                5 Checks
               </span>
             </div>
-            <div className="mt-6 rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-5">
-              <div className="flex items-center justify-between text-xs text-white/60">
-                <span>Recommendation preview</span>
-                <span className="text-white/40">Sample output</span>
-              </div>
-              <div className="mt-4 grid gap-3">
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  <div className="flex items-center justify-between text-xs text-white/60">
-                    <span>Budget range</span>
-                    <span className="text-white">PHP 30k - 65k</span>
-                  </div>
-                  <div className="mt-2 h-2 w-full rounded-full bg-white/10">
-                    <div className="h-full w-3/4 rounded-full bg-gradient-to-r from-amber-300/80 via-amber-200/70 to-blue-300/80" />
-                  </div>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {[
-                    "CPU: Ryzen 5 5600",
-                    "GPU: RTX 4060",
-                    "RAM: 16GB DDR4",
-                    "Storage: 1TB NVMe",
-                  ].map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70"
-                    >
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="mt-6 grid gap-4 text-sm">
-              {
-                [
-                  "Translate budgets into component allocations.",
-                  "Match CPU sockets, RAM types, PSU headroom, and GPU clearance.",
-                  "Surface best-value parts from the local dataset.",
-                  "Provide a clear compatibility checklist for technicians.",
-                ]
-              .map((item) => (
+            <div className="mt-6 grid gap-3">
+              {[
+                { icon: "🎯", label: "Smart Picks", desc: "The AI is confident it chose the right category of parts for you", target: "≥ 85%" },
+                { icon: "💰", label: "Budget Fit", desc: "Your total build cost stays within the range you set", target: "≥ 90%" },
+                { icon: "🧭", label: "Right Parts for You", desc: "Parts are prioritized based on what you actually need", target: "≥ 85%" },
+                { icon: "🔗", label: "Everything Fits", desc: "All selected parts are guaranteed to work together", target: "100%" },
+                { icon: "⚡", label: "Fast Results", desc: "You get your recommendation in seconds, not hours", target: "≤ 15s" },
+              ].map((kpi) => (
                 <div
-                  key={item}
-                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-white/80"
+                  key={kpi.label}
+                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                 >
-                  {item}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{kpi.icon}</span>
+                      <span className="text-sm font-medium text-white/90">{kpi.label}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-amber-200">{kpi.target}</span>
+                  </div>
+                  <p className="mt-1 pl-7 text-xs text-white/50">{kpi.desc}</p>
                 </div>
               ))}
             </div>
             <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
-              AI builds typically generate in 6 to 9 seconds.
+              Every build is automatically checked against all 5 quality measures.
             </div>
           </div>
         </header>
@@ -113,16 +81,16 @@ export default function Home() {
           {
             [
               {
-                title: "Compatibility first",
-                body: "Every build checks sockets, memory generation, PSU headroom, and case clearance before it is shown.",
+                title: "Picks what matters most",
+                body: "If you game, it focuses on graphics. If you edit videos, it prioritizes processing power. SmartBuild understands what each activity needs most.",
               },
               {
-                title: "Budget-aware scoring",
-                body: "Weights shift automatically to honor CPU-heavy, GPU-heavy, or storage-focused priorities.",
+                title: "Everything works together",
+                body: "No mismatched parts. SmartBuild checks that your processor fits the motherboard, memory is the right type, power supply is strong enough, and everything fits in the case.",
               },
               {
-                title: "Technician-ready",
-                body: "Clear recommendations, fast alternatives, and no server setup required for demos.",
+                title: "Best value for your money",
+                body: "Your budget is spread smartly across all parts — more goes to the components that matter most for what you do, without wasting money on parts you don't need.",
               },
             ]
           .map((card) => (
@@ -141,22 +109,23 @@ export default function Home() {
         <section className="rounded-3xl border border-white/10 bg-white/5 p-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="font-heading text-2xl">How the AI recommendation works</h2>
+              <h2 className="font-heading text-2xl">How it works</h2>
               <p className="mt-2 text-sm text-white/70">
-                A fast, transparent pipeline from your requirements to a validated build.
+                From your answers to a complete PC build in seconds.
               </p>
             </div>
             <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs uppercase tracking-widest text-amber-200">
               Timeline
             </span>
           </div>
-          <div className="mt-6 grid gap-4 text-sm md:grid-cols-5">
+          <div className="mt-6 grid gap-4 text-sm md:grid-cols-6">
             {[
-              { label: "Input", detail: "Budget + usage intent" },
-              { label: "Classify", detail: "AI intent weights" },
-              { label: "Predict", detail: "RF tier selection" },
-              { label: "Validate", detail: "Compatibility rules" },
-              { label: "Recommend", detail: "Build + cost" },
+              { label: "Step 1", detail: "You tell us your budget and what you'll use the PC for" },
+              { label: "Step 2", detail: "The AI figures out which level of parts you need" },
+              { label: "Step 3", detail: "It picks the best specific parts in your price range" },
+              { label: "Step 4", detail: "All parts are checked to make sure they fit together" },
+              { label: "Step 5", detail: "The total cost is calculated and compared to your budget" },
+              { label: "Step 6", detail: "The build is scored on 5 quality measures" },
             ].map((step) => (
               <div
                 key={step.label}
@@ -173,18 +142,18 @@ export default function Home() {
 
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-amber-400/10 via-white/5 to-transparent p-8">
-            <h2 className="font-heading text-2xl">What you provide</h2>
+            <h2 className="font-heading text-2xl">Just answer 5 questions</h2>
             <p className="mt-3 text-sm text-white/70">
-              The AI asks for a few key details to understand your requirements
-              and generate the best possible build.
+              No technical knowledge needed. We just need a few details
+              about how you plan to use your PC.
             </p>
             <div className="mt-6 grid gap-4 text-sm text-white/75">
               {[
-                "1. Budget range — minimum and maximum spend.",
-                "2. Primary activity — Gaming, Video Editing, 3D Modeling, etc.",
-                "3. Secondary activity (optional) — to balance the build further.",
-                "4. Expected longevity — 1–2, 3–5, or 5+ years.",
-                "5. Upgrade openness — future-proof with newer platforms?",
+                "1. How much can you spend? (minimum and maximum)",
+                "2. What will you mainly use the PC for? (Gaming, Work, etc.)",
+                "3. Anything else you'll do on it? (optional)",
+                "4. How long should it last? (1–2, 3–5, or 5+ years)",
+                "5. Do you want the option to upgrade parts later?",
               ].map((step) => (
                 <div
                   key={step}
@@ -197,10 +166,10 @@ export default function Home() {
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
-            <h2 className="font-heading text-2xl">Ready to build?</h2>
+            <h2 className="font-heading text-2xl">Ready to get started?</h2>
             <p className="mt-3 text-sm text-white/70">
-              Start the recommendation process and get a complete, compatible PC
-              build tailored to your exact needs and budget.
+              Answer a few quick questions and get a complete PC parts list
+              that fits your needs and your wallet.
             </p>
             <div className="mt-6 flex flex-col gap-3">
               <Link
@@ -209,25 +178,28 @@ export default function Home() {
               >
                 Start recommendation
               </Link>
-              <Link
-                href="/user-input"
-                className="rounded-2xl border border-white/20 px-5 py-3 text-center text-sm font-semibold text-white/80 transition hover:bg-white/5"
-              >
-                View a sample output
-              </Link>
+
             </div>
             <div className="mt-6 grid gap-3 text-xs text-white/60">
               <div className="flex items-center justify-between">
-                <span>Compatibility reliability</span>
+                <span>AI confidence in picks</span>
+                <span className="text-white">≥ 85%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Stays within your budget</span>
+                <span className="text-white">≥ 90%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Right parts for your needs</span>
+                <span className="text-white">≥ 85%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>All parts work together</span>
                 <span className="text-white">100%</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>Budget fit target</span>
-                <span className="text-white">90%+</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Average runtime</span>
-                <span className="text-white">&lt; 10s</span>
+                <span>Results delivered in</span>
+                <span className="text-white">≤ 15 seconds</span>
               </div>
             </div>
           </div>

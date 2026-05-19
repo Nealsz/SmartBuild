@@ -211,6 +211,7 @@ export default function BuildResultPage() {
           <Link
             href="/user-input"
             className="flex items-center gap-2 text-xs text-white/50 transition hover:text-white/80 w-fit"
+            data-html2canvas-ignore="true"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
             Back to Input
@@ -450,7 +451,7 @@ export default function BuildResultPage() {
             </div>
 
             {/* Actions */}
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-7">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-7" data-html2canvas-ignore="true">
               <h2 className="font-heading text-lg">What&apos;s next?</h2>
               <p className="mt-2 text-xs text-white/60">
                 Not satisfied? Go back and adjust your requirements to generate

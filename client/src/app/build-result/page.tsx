@@ -340,7 +340,7 @@ export default function BuildResultPage() {
           const allPassed = EVAL_PARAMS.every((p) => ev[p.key].passed);
 
           return (
-            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/5 to-transparent p-5 sm:p-7 backdrop-blur shadow-[0_20px_80px_-40px_rgba(139,92,246,0.25)]">
+            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/5 to-transparent p-5 sm:p-7 backdrop-blur shadow-[0_20px_80px_-40px_rgba(139,92,246,0.25)]" data-html2canvas-ignore="true">
               <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="font-heading text-2xl">System Evaluation</h2>

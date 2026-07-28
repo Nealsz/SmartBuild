@@ -3,7 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from schemas.user_input import UserInput
 from config import ACTIVITY_WEIGHTS, LONGEVITY_MULTIPLIER
-from services.recommender import generate_build as recommender_generate_build
+from services.recommender import (
+    generate_build as recommender_generate_build,
+    get_cheapest_compatible_build,
+)
 
 VALID_ACTIVITIES = list(ACTIVITY_WEIGHTS.keys())
 VALID_LONGEVITY = list(LONGEVITY_MULTIPLIER.keys())
@@ -27,6 +30,15 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+def startup_event():
+    """Pre-warm dataset, ML models, and minimum compatible build cache on boot."""
+    try:
+        get_cheapest_compatible_build()
+    except Exception as e:
+        print(f"[Warning] Failed to pre-warm cheapest build cache: {e}")
+
+
 @app.get("/")
 def root():
     return {"status": "ok", "version": "2.0.0"}
@@ -42,6 +54,17 @@ def get_activities():
 def get_longevity_options():
     """Return the list of valid longevity options."""
     return {"longevity_options": VALID_LONGEVITY}
+
+
+@app.get("/min-compatible-budget")
+def get_min_compatible_budget():
+    """Return the baseline minimum budget for the cheapest working compatible PC."""
+    try:
+        data = get_cheapest_compatible_build()
+        # raw_build contains pandas Series with numpy types — strip before serialising
+        return {k: v for k, v in data.items() if k != "raw_build"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/generate-build")

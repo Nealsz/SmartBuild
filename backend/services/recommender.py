@@ -11,26 +11,47 @@ Orchestrates the full recommendation pipeline:
 This file contains no scoring logic — it only wires services together.
 """
 
+import os
+import json
 import time
 import pandas as pd
 import joblib
 
-from config import PATHS, MODEL_PATH, ENCODERS_PATH
+from config import PATHS, MODEL_PATH, ENCODERS_PATH, GPU_TDP_MAP, MIN_BUDGET_PATH
 from .intent_classifier import build_feature_vector, compute_intent
 from .selector import select_build
 from .compatibility import check_compatibility, summarise
 
 
 # ── Lazy-loaded singletons (loaded once on first request) ──────────────────────
-_dfs:      dict[str, pd.DataFrame] | None = None
-_artifact: dict | None = None
-_encoders: dict | None = None
+_dfs:                  dict[str, pd.DataFrame] | None = None
+_artifact:             dict | None = None
+_encoders:             dict | None = None
+_cheapest_build_cache: dict | None = None
 
 
 def _load_data() -> dict[str, pd.DataFrame]:
     global _dfs
     if _dfs is None:
-        _dfs = {name: pd.read_csv(path) for name, path in PATHS.items()}
+        _dfs = {}
+        numeric_cols_map = {
+            "cpu": ["price", "boost_clock", "core_count", "core_clock", "performance_score", "tdp"],
+            "gpu": ["price", "memory", "core_clock", "boost_clock"],
+            "ram": ["price", "speed_mhz", "total_capacity_gb", "first_word_latency"],
+            "storage": ["price", "capacity"],
+            "motherboard": ["price", "max_memory", "memory_slots"],
+            "psu": ["price", "wattage"],
+            "case": ["price", "external_volume"],
+            "cpu_cooler": ["price", "size"],
+            "case_fan": ["price"],
+        }
+        for name, path in PATHS.items():
+            df = pd.read_csv(path)
+            cols_to_convert = numeric_cols_map.get(name, ["price"])
+            for col in cols_to_convert:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors="coerce")
+            _dfs[name] = df
     return _dfs
 
 
@@ -304,3 +325,164 @@ def generate_build(
         "compatibility": compatibility,
         "evaluation":    evaluation,
     }
+
+
+def get_cheapest_compatible_build(force_recalculate: bool = False) -> dict:
+    """
+    Finds the minimum budget at which the actual recommendation pipeline
+    (select_build + check_compatibility) produces a zero-failure compatible build.
+
+    Result is cached in memory and persisted to MIN_BUDGET_PATH on disk.
+    If MIN_BUDGET_PATH exists, it is loaded directly without binary search.
+    """
+    global _cheapest_build_cache
+    if not force_recalculate and _cheapest_build_cache is not None:
+        return _cheapest_build_cache
+
+    if not force_recalculate and os.path.exists(MIN_BUDGET_PATH):
+        try:
+            with open(MIN_BUDGET_PATH, "r", encoding="utf-8") as f:
+                _cheapest_build_cache = json.load(f)
+                return _cheapest_build_cache
+        except Exception:
+            pass  # Fall through to calculation if JSON read fails
+
+    dfs     = _load_data()
+    _load_model()   # ensure model is warm (not used for tiers here, but loads data)
+
+    from .compatibility import check_compatibility, summarise as compat_summarise
+    from .selector     import select_build
+
+    # All-budget tiers — forces the selector into the cheapest price bands
+    budget_tiers = {
+        "cpu":        "budget",
+        "gpu":        "budget",
+        "ram":        "budget",
+        "storage":    "budget",
+        "motherboard":"budget",
+        "psu":        "budget",
+        "case":       "budget",
+        "cpu_cooler": "budget",
+    }
+
+    # Neutral intent: equal moderate weights across all dimensions
+    # (avoids skewing toward expensive workload-specific parts)
+    neutral_intent = {
+        "cpu_single":  0.3,
+        "cpu_multi":   0.3,
+        "gpu_compute": 0.3,
+        "vram":        0.3,
+        "ram_cap":     0.3,
+        "storage_spd": 0.3,
+    }
+
+    # Binary search bounds — start at 10k (floor), cap at 60k (safety ceiling)
+    lo = 10_000
+    hi = 60_000
+
+    best_budget  = None
+    best_build   = None
+    best_total   = None
+
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        # Use mid as both min and max so BASE_ALLOC midpoint == mid
+        try:
+            build = select_build(
+                dfs          = dfs,
+                tiers        = budget_tiers,
+                intent       = neutral_intent,
+                budget_min   = mid,
+                budget_max   = mid,
+                longevity    = "1-2 years",   # lowest longevity → score mult = 0.8 → cheapest picks
+                upgrade_open = False,
+                is_calculating_min_budget = True,
+            )
+        except Exception:
+            lo = mid + 1_000
+            continue
+
+        psu_min = build.pop("psu_min_watt", 0)
+        psu_max = build.pop("psu_max_watt", 0)
+
+        compat  = check_compatibility(build, psu_min, psu_max)
+        summary = compat_summarise(compat)
+
+        total = sum(
+            float(r.get("price", 0))
+            for r in build.values()
+            if r is not None
+        )
+
+        if summary["failures"] == 0 and total <= mid:
+            best_budget = mid
+            best_build  = build
+            best_total  = total
+            hi = mid - 1_000          # try to find a cheaper passing point
+        else:
+            lo = mid + 1_000
+
+    # If binary search found nothing, sweep upward in 500-step increments
+    if best_build is None:
+        for budget in range(10_000, 80_001, 500):
+            try:
+                build = select_build(
+                    dfs          = dfs,
+                    tiers        = budget_tiers,
+                    intent       = neutral_intent,
+                    budget_min   = budget,
+                    budget_max   = budget,
+                    longevity    = "1-2 years",
+                    upgrade_open = False,
+                    is_calculating_min_budget = True,
+                )
+            except Exception:
+                continue
+
+            psu_min = build.pop("psu_min_watt", 0)
+            psu_max = build.pop("psu_max_watt", 0)
+
+            compat  = check_compatibility(build, psu_min, psu_max)
+            summary = compat_summarise(compat)
+            total   = sum(
+                float(r.get("price", 0))
+                for r in build.values()
+                if r is not None
+            )
+
+            if summary["failures"] == 0 and total <= budget:
+                best_budget = budget
+                best_build  = build
+                best_total  = total
+                break
+
+    if best_build is None or best_total is None:
+        raise RuntimeError("Could not find any compatible build within 80,000 budget.")
+
+    rounded_min = int(round(best_total))
+
+    parts_summary: dict = {}
+    for k, v in best_build.items():
+        if v is not None:
+            if isinstance(v, pd.Series):
+                parts_summary[k] = {
+                    "name":  str(v.get("name", "")),
+                    "price": float(v.get("price", 0)),
+                }
+            else:
+                parts_summary[k] = {"name": str(v), "price": 0.0}
+
+    _cheapest_build_cache = {
+        "min_budget":           rounded_min,
+        "exact_min_budget":     round(best_total, 2),
+        "formatted_min_budget": f"₱{rounded_min:,}",
+        "parts":                parts_summary,
+    }
+
+    try:
+        with open(MIN_BUDGET_PATH, "w", encoding="utf-8") as f:
+            json.dump(_cheapest_build_cache, f, indent=2)
+    except Exception as e:
+        print(f"[Warning] Could not save min budget JSON cache: {e}")
+
+    return _cheapest_build_cache

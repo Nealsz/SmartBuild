@@ -1,0 +1,43 @@
+{
+  "min_budget": 29878,
+  "exact_min_budget": 29878.12,
+  "formatted_min_budget": "\u20b129,878",
+  "parts": {
+    "cpu": {
+      "name": "AMD Ryzen 5 5500",
+      "price": 4304.76
+    },
+    "gpu": {
+      "name": "ASRock Phantom Gaming D OC",
+      "price": 9279.42
+    },
+    "ram": {
+      "name": "Patriot Viper Venom 16 GB",
+      "price": 2841.42
+    },
+    "storage": {
+      "name": "KingSpec XG7000",
+      "price": 2551.42
+    },
+    "motherboard": {
+      "name": "ASRock B650M-H/M.2+",
+      "price": 5799.42
+    },
+    "psu": {
+      "name": "CoolMax V-400",
+      "price": 1449.4199999999998
+    },
+    "case": {
+      "name": "Cooler Master MasterBox Q300L",
+      "price": 2145.42
+    },
+    "cpu_cooler": {
+      "name": "Iceberg Thermal IceFLOE T95",
+      "price": 579.42
+    },
+    "case_fan": {
+      "name": "ARCTIC S12038-8K",
+      "price": 927.42
+    }
+  }
+}

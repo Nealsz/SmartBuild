@@ -585,7 +585,18 @@ if __name__ == "__main__":
     print("=" * 60)
 
     # Quick sanity check
-    print("\nSanity check — Gaming + Video Editing, ₱50k–₱80k, 3-5 years:")
+    print("\nSanity check — Gaming + Video Editing, PHP 50k–80k, 3-5 years:")
     tiers = predict_tiers(50000, 80000, "Gaming", "Video Editing", "3-5 years", False)
     for comp, tier in tiers.items():
-        print(f"  {comp:<15} → {tier}")
+        print(f"  {comp:<15} -> {tier}")
+
+    # Re-calculate and persist minimum compatible budget JSON artifact
+    import sys
+    sys_path = os.path.dirname(BASE_DIR)
+    if sys_path not in sys.path:
+        sys.path.insert(0, sys_path)
+    from services.recommender import get_cheapest_compatible_build
+
+    print("\nUpdating minimum compatible budget cache...")
+    min_info = get_cheapest_compatible_build(force_recalculate=True)
+    print(f"  Minimum Compatible Budget updated: {min_info.get('min_budget')}")

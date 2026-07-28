@@ -251,6 +251,7 @@ def select_build(
     budget_max: int,
     longevity: str,
     upgrade_open: bool,
+    is_calculating_min_budget: bool = False,
 ) -> dict:
     """
     Selects the best component for each category using RF tier predictions
@@ -388,7 +389,7 @@ def select_build(
     )
     fan_row = _select_case_fan(dfs["case_fan"], budget_max - spent)
 
-    return {
+    res_build = {
         "cpu":          cpu_row,
         "gpu":          gpu_row,
         "ram":          ram_row,
@@ -401,3 +402,58 @@ def select_build(
         "psu_min_watt": min_watt,
         "psu_max_watt": max_watt,
     }
+
+    # ── Post-processing: Budget Fit Enforcement ────────────────────────────────
+    total_spent = sum(
+        float(r.get("price", 0))
+        for k, r in res_build.items()
+        if r is not None and k not in ("psu_min_watt", "psu_max_watt")
+    )
+
+    if total_spent > budget_max and not is_calculating_min_budget:
+        from .recommender import get_cheapest_compatible_build
+        cheap_info = get_cheapest_compatible_build()
+
+        # If budget_max is near the baseline minimum compatible build cost (or under cheap + 1000)
+        if budget_max <= cheap_info["min_budget"] + 1000:
+            cheapest_parts = cheap_info["parts"]
+            res_build_cheap = {}
+            for cat in ["cpu", "gpu", "ram", "motherboard", "storage", "psu", "case", "cpu_cooler", "case_fan"]:
+                name = cheapest_parts.get(cat, {}).get("name")
+                if name and cat in dfs:
+                    row = dfs[cat][dfs[cat]["name"] == name]
+                    res_build_cheap[cat] = row.iloc[0] if not row.empty else None
+                else:
+                    res_build_cheap[cat] = None
+            res_build_cheap["psu_min_watt"] = min_watt
+            res_build_cheap["psu_max_watt"] = max_watt
+            return res_build_cheap
+
+        # Trim components iteratively if budget_max is larger
+        from .compatibility import check_compatibility, summarise
+        for comp in ["gpu", "motherboard", "cpu", "ram", "storage", "case", "cpu_cooler", "psu"]:
+            curr = res_build.get(comp)
+            if curr is None:
+                continue
+            curr_price = float(curr.get("price", 0))
+            df_comp = dfs[comp].copy()
+            df_comp["price_num"] = pd.to_numeric(df_comp["price"], errors="coerce")
+            cheaper_items = df_comp[df_comp["price_num"] < curr_price].sort_values("price_num")
+
+            for _, item in cheaper_items.iterrows():
+                test_build = dict(res_build)
+                test_build[comp] = item
+                test_cand = {k: v for k, v in test_build.items() if k not in ("psu_min_watt", "psu_max_watt")}
+                res = check_compatibility(test_cand, min_watt, max_watt)
+                if summarise(res)["failures"] == 0:
+                    res_build = test_build
+                    new_tot = sum(
+                        float(r.get("price", 0))
+                        for k, r in res_build.items()
+                        if r is not None and k not in ("psu_min_watt", "psu_max_watt")
+                    )
+                    if new_tot <= budget_max:
+                        return res_build
+                    break
+
+    return res_build

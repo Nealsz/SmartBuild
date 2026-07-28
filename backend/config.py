@@ -29,6 +29,7 @@ MODEL_DIR = os.path.join(BASE_DIR, "model")
 MODEL_PATH    = os.path.join(MODEL_DIR, "smartbuild_model.pkl")
 ENCODERS_PATH = os.path.join(MODEL_DIR, "encoders.pkl")
 TIERS_PATH    = os.path.join(MODEL_DIR, "tier_boundaries.json")
+MIN_BUDGET_PATH = os.path.join(MODEL_DIR, "min_compatible_budget.json")
 
 # ── Activity → hardware demand dimension weights ───────────────────────────────
 # Each dimension maps directly to a scoreable column in the CSV data:

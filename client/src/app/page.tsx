@@ -224,6 +224,35 @@ export default function Home() {
           </div>
         </section>
       </main>
+
+      {/* Admin portal link — subtle footer */}
+      <footer className="relative border-t border-white/5 px-6 py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between">
+          <span className="text-xs text-white/20">
+            © {new Date().getFullYear()} SmartBuild
+          </span>
+          <Link
+            href="/admin/login"
+            id="admin-portal-link"
+            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/30 transition hover:border-white/20 hover:bg-white/10 hover:text-white/60"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              className="h-3 w-3"
+            >
+              <path
+                fillRule="evenodd"
+                d="M8 1a3.5 3.5 0 1 0 0 7A3.5 3.5 0 0 0 8 1ZM4.5 4.5a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0ZM2 13.5A3.5 3.5 0 0 1 5.5 10h5a3.5 3.5 0 0 1 3.5 3.5v.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-.5Z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Admin
+          </Link>
+        </div>
+      </footer>
     </div>
+
   );
 }

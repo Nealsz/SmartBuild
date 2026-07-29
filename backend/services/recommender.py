@@ -17,10 +17,14 @@ import time
 import pandas as pd
 import joblib
 
+import logging
 from config import PATHS, MODEL_PATH, ENCODERS_PATH, GPU_TDP_MAP, MIN_BUDGET_PATH
 from .intent_classifier import build_feature_vector, compute_intent
 from .selector import select_build
 from .compatibility import check_compatibility, summarise
+from .supabase_service import fetch_table_as_dataframe
+
+logger = logging.getLogger(__name__)
 
 
 # ── Lazy-loaded singletons (loaded once on first request) ──────────────────────
@@ -46,7 +50,16 @@ def _load_data() -> dict[str, pd.DataFrame]:
             "case_fan": ["price"],
         }
         for name, path in PATHS.items():
-            df = pd.read_csv(path)
+            # Attempt to fetch from Supabase database first
+            df = fetch_table_as_dataframe(name)
+            
+            # Fallback to local CSV file if Supabase data is unavailable
+            if df is None or df.empty:
+                logger.info(f"Loading '{name}' dataset from local CSV file: {path}")
+                df = pd.read_csv(path)
+            else:
+                logger.info(f"Successfully loaded '{name}' dataset from Supabase database.")
+
             cols_to_convert = numeric_cols_map.get(name, ["price"])
             for col in cols_to_convert:
                 if col in df.columns:

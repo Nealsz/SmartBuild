@@ -7,6 +7,8 @@ from services.recommender import (
     generate_build as recommender_generate_build,
     get_cheapest_compatible_build,
 )
+from routers.admin import router as admin_router
+from services.admin_seeder import run_seeder
 
 VALID_ACTIVITIES = list(ACTIVITY_WEIGHTS.keys())
 VALID_LONGEVITY = list(LONGEVITY_MULTIPLIER.keys())
@@ -17,6 +19,8 @@ app = FastAPI(
     version="2.0.0",
 )
 
+# CORS must be registered BEFORE routers so error responses (4xx/5xx) also
+# carry the Access-Control-Allow-Origin header and the browser can read them.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -29,10 +33,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(admin_router)
+
 
 @app.on_event("startup")
 def startup_event():
     """Pre-warm dataset, ML models, and minimum compatible build cache on boot."""
+    # Seed default admin account if none exists
+    try:
+        run_seeder()
+    except Exception as e:
+        print(f"[Warning] Admin seeder failed: {e}")
+
+    # Pre-warm recommendation pipeline
     try:
         get_cheapest_compatible_build()
     except Exception as e:

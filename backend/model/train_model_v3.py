@@ -162,12 +162,21 @@ PATHS = {
 # sanity-check (and any future retrain that needs real catalog data) always
 # gets the most up-to-date source available. Running this file is now how
 # you retrain against whatever is LIVE in Supabase, not a frozen CSV snapshot.
-def _load_data() -> dict[str, pd.DataFrame]:
+def _load_data(apply_stock_filter: bool = True) -> dict[str, pd.DataFrame]:
     """Load all component tables.
 
     Priority:
       1. Supabase (live catalog)
       2. Local CSV files (offline / fallback)
+
+    apply_stock_filter=False is used specifically for tier-boundary
+    recalibration (see compute_tier_boundaries): a product's cosmetic price
+    tier ("mid", "enthusiast", etc.) describes the CATALOG, not momentary
+    purchasability, so calibrating it against stock-filtered data would mean
+    a quiet stock dip silently falls back to the stale hardcoded boundaries
+    — exactly the kind of bug this whole fix exists to prevent. Every other
+    caller (select_build and anything serving real recommendations) should
+    keep using the default apply_stock_filter=True.
     """
     numeric_cols_map = {
         "cpu":         ["price", "boost_clock", "core_count", "core_clock", "performance_score", "tdp", "stock"],
@@ -218,7 +227,7 @@ def _load_data() -> dict[str, pd.DataFrame]:
 
         dfs[name] = df
 
-    return _apply_stock_filter(dfs)
+    return _apply_stock_filter(dfs) if apply_stock_filter else dfs
 
 
 # ── Stock filter: applied once, centrally, so every downstream consumer
@@ -293,8 +302,14 @@ GPU_TDP_MAP = {
 }
 PCIE5_CHIPSETS = ["Z790","Z890","X870","X670","TRX"]
 
-# Kept only for cosmetic UI labeling of the FINAL chosen item's price
-# (e.g. "high-tier GPU" in a summary) — no longer used as an ML target.
+# Cosmetic UI labeling only (e.g. "high-tier GPU" in a summary) — never
+# used as an ML target, and select_build() never reads this. Fallback
+# values only; compute_tier_boundaries(dfs) below OVERWRITES these at
+# train time from the live catalog's actual price quartiles, because a
+# hardcoded set drifts stale the moment the real catalog's prices differ
+# from whatever it was calibrated against — which is exactly what caused
+# nearly every item to cosmetically display as "mid" despite select_build()
+# itself working correctly off budget shares the whole time.
 TIER_BOUNDARIES = {
     "cpu":         [5509,  18047, 28898],
     "gpu":         [20589, 57884, 94539],
@@ -305,6 +320,27 @@ TIER_BOUNDARIES = {
     "case":        [1500,  3500,  6000],
     "cpu_cooler":  [1000,  2500,  5000],
 }
+
+def compute_tier_boundaries(dfs: dict) -> dict:
+    """Recompute TIER_BOUNDARIES from the 25th/50th/75th percentile of each
+    category's REAL, current catalog prices. Quartiles guarantee each of
+    the four buckets (budget/mid/high/enthusiast) gets ~25% of the catalog
+    by construction, regardless of how the real price distribution is
+    shaped — so no bucket can disproportionately swallow the catalog the
+    way "mid" did under the old hardcoded, stale boundaries."""
+    boundaries = {}
+    for cat in TIER_BOUNDARIES:
+        if cat not in dfs or dfs[cat].empty or "price" not in dfs[cat].columns:
+            boundaries[cat] = TIER_BOUNDARIES[cat]  # fallback if catalog is empty/missing
+            continue
+        prices = pd.to_numeric(dfs[cat]["price"], errors="coerce").dropna()
+        if prices.empty:
+            boundaries[cat] = TIER_BOUNDARIES[cat]
+            continue
+        q = prices.quantile([0.25, 0.5, 0.75]).round(0).astype(int).tolist()
+        boundaries[cat] = q
+    return boundaries
+
 def price_to_tier(price: float, component: str) -> str:
     b = TIER_BOUNDARIES[component]
     if price < b[0]: return "budget"
@@ -569,11 +605,11 @@ def train(df):
 
 _cached_artifact = None
 
-def save_artifacts(models, feature_cols, target_cols):
+def save_artifacts(models, feature_cols, target_cols, tier_boundaries=None):
     global _cached_artifact
     joblib.dump({"models": models, "feature_cols": feature_cols, "target_cols": target_cols}, OUTPUT_MODEL)
     with open(OUTPUT_TIERS, "w") as f:
-        json.dump(TIER_BOUNDARIES, f, indent=2)
+        json.dump(tier_boundaries or TIER_BOUNDARIES, f, indent=2)
     _cached_artifact = None
     print(f"\n  Saved: {OUTPUT_MODEL}\n  Saved: {OUTPUT_TIERS}")
 
@@ -869,14 +905,28 @@ if __name__ == "__main__":
 
     train_df = generate_training_data()
     models, feature_cols, target_cols = train(train_df)
-    save_artifacts(models, feature_cols, target_cols)
+
+    # Load the live catalog BEFORE saving, so tier_boundaries.json is
+    # calibrated against whatever's actually in Supabase right now, not a
+    # stale hardcoded fallback. This is what was causing the cosmetic
+    # "forced to mid" display bug — select_build() itself never used these.
+    print("\nLoading component data for a live sanity check (Supabase-first)...")
+    dfs = _load_data()  # stock-filtered — this is what select_build() below actually uses
+
+    # Tier-boundary calibration deliberately uses the UNFILTERED catalog
+    # (apply_stock_filter=False): a product's price tier shouldn't flip to
+    # the stale fallback just because stock happens to be thin right now.
+    print("\nRecalibrating tier boundaries from the live catalog's price quartiles...")
+    dfs_for_tiers = _load_data(apply_stock_filter=False)
+    live_tier_boundaries = compute_tier_boundaries(dfs_for_tiers)
+    for cat, b in live_tier_boundaries.items():
+        print(f"  {cat:<14} {b}")
+
+    save_artifacts(models, feature_cols, target_cols, tier_boundaries=live_tier_boundaries)
 
     print("\n" + "=" * 60)
     print("Training complete.")
     print("=" * 60)
-
-    print("\nLoading component data for a live sanity check (Supabase-first)...")
-    dfs = _load_data()
 
     print("\nSanity check — same budget, different activities:")
     for act in ["Documents / Office Work", "Gaming", "3D Modeling or Animation"]:

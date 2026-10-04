@@ -1,43 +1,43 @@
 {
-  "min_budget": 29820,
-  "exact_min_budget": 29820.12,
-  "formatted_min_budget": "\u20b129,820",
+  "min_budget": 31199,
+  "exact_min_budget": 31199.0,
+  "formatted_min_budget": "\u20b131,199",
   "parts": {
     "cpu": {
-      "name": "AMD Ryzen 5 5500",
-      "price": 4304.76
+      "name": "AMD Ryzen 5 5500 6-Core 12-Thread AM4 Desktop Processor",
+      "price": 5433.0
     },
     "gpu": {
-      "name": "ASRock Phantom Gaming D OC",
-      "price": 9279.42
+      "name": "GeForce RTX 3050 Colorful RTX 3050 Duo 6GB-V V4-V",
+      "price": 13950.0
     },
     "ram": {
-      "name": "Patriot Viper Venom 16 GB",
-      "price": 2783.42
+      "name": "ESGaming 8GB 3200Mhz DDR4 Memory",
+      "price": 2571.0
     },
     "storage": {
-      "name": "KingSpec XG7000",
-      "price": 2551.42
+      "name": "Toshiba 500gb HDD",
+      "price": 1945.0
     },
     "motherboard": {
-      "name": "ASRock B650M-H/M.2+",
-      "price": 5799.42
+      "name": "Asrock A520M-HVS Socket Am4 Ddr4 Motherboard",
+      "price": 3295.0
     },
     "psu": {
-      "name": "CoolMax V-400",
-      "price": 1449.42
+      "name": "Acer AC-650 650w Full Modular 80plus Bronze",
+      "price": 2055.0
     },
     "case": {
-      "name": "Cooler Master MasterBox Q300L",
-      "price": 2145.42
+      "name": "Keytech T-100 Tempered Glass Micro ATX Gaming PC Case",
+      "price": 1115.0
     },
     "cpu_cooler": {
-      "name": "Iceberg Thermal IceFLOE T95",
-      "price": 579.42
+      "name": "AMD Stock Heatsink Fan",
+      "price": 140.0
     },
     "case_fan": {
-      "name": "ARCTIC S12038-8K",
-      "price": 927.42
+      "name": "Jungle Leopard Interstellar V4 DGT Single Fan ARGB Chassis Fan",
+      "price": 695.0
     }
   }
 }

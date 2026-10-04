@@ -13,7 +13,7 @@ import os
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import bcrypt
 from jose import JWTError, jwt
@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel
 
 from services.supabase_service import get_supabase_client, TABLE_NAME_MAP
+from services.recommender import trigger_recalculate_min_budget
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -176,9 +177,10 @@ def list_components(
 def create_component(
     category: str,
     body: dict[str, Any],
+    background_tasks: BackgroundTasks,
     username: str = Depends(_verify_token),
 ):
-    """Insert a new component row."""
+    """Insert a new component row and trigger min budget recalculation."""
     table_name = _resolve_table(category)
     client = get_supabase_client()
     if client is None:
@@ -194,6 +196,9 @@ def create_component(
         logger.error(f"[Admin] create_component error for '{table_name}': {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+    # Schedule background recalculation of minimum compatible budget
+    background_tasks.add_task(trigger_recalculate_min_budget)
+
     return {"created": resp.data[0] if resp.data else body}
 
 
@@ -202,9 +207,10 @@ def update_component(
     category: str,
     row_id: str,
     body: dict[str, Any],
+    background_tasks: BackgroundTasks,
     username: str = Depends(_verify_token),
 ):
-    """Update an existing component row by id."""
+    """Update an existing component row by id and trigger min budget recalculation."""
     table_name = _resolve_table(category)
     client = get_supabase_client()
     if client is None:
@@ -222,6 +228,9 @@ def update_component(
     if not resp.data:
         raise HTTPException(status_code=404, detail="Row not found or no changes made.")
 
+    # Schedule background recalculation of minimum compatible budget
+    background_tasks.add_task(trigger_recalculate_min_budget)
+
     return {"updated": resp.data[0]}
 
 
@@ -229,9 +238,10 @@ def update_component(
 def delete_component(
     category: str,
     row_id: str,
+    background_tasks: BackgroundTasks,
     username: str = Depends(_verify_token),
 ):
-    """Delete a component row by id."""
+    """Delete a component row by id and trigger min budget recalculation."""
     table_name = _resolve_table(category)
     client = get_supabase_client()
     if client is None:
@@ -243,4 +253,18 @@ def delete_component(
         logger.error(f"[Admin] delete_component error for '{table_name}' id={row_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+    # Schedule background recalculation of minimum compatible budget
+    background_tasks.add_task(trigger_recalculate_min_budget)
+
     return {"deleted": True, "id": row_id}
+
+
+@router.post("/recalculate-min-budget")
+def admin_recalculate_min_budget(
+    background_tasks: BackgroundTasks,
+    username: str = Depends(_verify_token),
+):
+    """Admin endpoint to manually trigger minimum compatible budget recalculation."""
+    background_tasks.add_task(trigger_recalculate_min_budget)
+    return {"status": "recalculating", "message": "Minimum budget recalculation started in background."}
+

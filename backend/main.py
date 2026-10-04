@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from schemas.user_input import UserInput
@@ -6,6 +6,7 @@ from config import ACTIVITY_WEIGHTS, RESOLUTION_TARGET_WEIGHTS
 from services.recommender import (
     generate_build as recommender_generate_build,
     get_cheapest_compatible_build,
+    trigger_recalculate_min_budget,
 )
 from routers.admin import router as admin_router
 from routers.tickets import router as tickets_router, cleanup_expired_tickets
@@ -90,14 +91,48 @@ def get_resolution_options():
 
 
 @app.get("/min-compatible-budget")
-def get_min_compatible_budget():
+def get_min_compatible_budget(
+    refresh: bool = False,
+    background_tasks: BackgroundTasks = None,
+):
     """Return the baseline minimum budget for the cheapest working compatible PC."""
     try:
+        if refresh and background_tasks:
+            background_tasks.add_task(trigger_recalculate_min_budget)
         data = get_cheapest_compatible_build()
         # raw_build contains pandas Series with numpy types — strip before serialising
         return {k: v for k, v in data.items() if k != "raw_build"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/webhooks/supabase")
+async def supabase_database_webhook(
+    request: Request,
+    background_tasks: BackgroundTasks,
+):
+    """
+    Webhook endpoint called by Supabase Database Webhooks whenever a component
+    is inserted, updated, or deleted. Automatically recalculates the minimum compatible budget.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    table = body.get("table", "unknown")
+    event_type = body.get("type", "UNKNOWN")
+    print(f"[Supabase Webhook] Received {event_type} on table '{table}'. Triggering min budget recalculation.")
+
+    # Schedule asynchronous recalculation
+    background_tasks.add_task(trigger_recalculate_min_budget)
+
+    return {
+        "status": "received",
+        "table": table,
+        "event": event_type,
+        "action": "recalculation_scheduled",
+    }
 
 
 @app.post("/generate-build")

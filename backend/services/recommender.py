@@ -14,6 +14,7 @@ This file contains no scoring logic — it only wires services together.
 import os
 import json
 import time
+import threading
 import pandas as pd
 import joblib
 
@@ -32,6 +33,28 @@ _dfs:                  dict[str, pd.DataFrame] | None = None
 _artifact:             dict | None = None
 _encoders:             dict | None = None
 _cheapest_build_cache: dict | None = None
+_recalc_lock = threading.Lock()
+
+
+def invalidate_data_cache() -> None:
+    """Invalidate memory cache of component DataFrames and cheapest build."""
+    global _dfs, _cheapest_build_cache
+    _dfs = None
+    _cheapest_build_cache = None
+    logger.info("[Cache] Cleared component DataFrame and min budget cache.")
+
+
+def trigger_recalculate_min_budget() -> dict:
+    """
+    Thread-safe recalculation of minimum compatible budget from live Supabase data.
+    Flushes cache, re-fetches all components, and re-computes min budget.
+    """
+    with _recalc_lock:
+        logger.info("[MinBudget] Starting recalculation from live Supabase data...")
+        invalidate_data_cache()
+        res = get_cheapest_compatible_build(force_recalculate=True)
+        logger.info(f"[MinBudget] Recalculation complete. New min budget: {res.get('min_budget')}")
+        return res
 
 
 def _load_data() -> dict[str, pd.DataFrame]:
@@ -446,7 +469,9 @@ def get_cheapest_compatible_build(force_recalculate: bool = False) -> dict:
     If MIN_BUDGET_PATH exists, it is loaded directly without binary search.
     """
     global _cheapest_build_cache
-    if not force_recalculate and _cheapest_build_cache is not None:
+    if force_recalculate:
+        invalidate_data_cache()
+    elif _cheapest_build_cache is not None:
         return _cheapest_build_cache
 
     if not force_recalculate and os.path.exists(MIN_BUDGET_PATH):

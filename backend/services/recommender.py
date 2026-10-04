@@ -49,16 +49,33 @@ def _load_data() -> dict[str, pd.DataFrame]:
             "cpu_cooler": ["price", "size", "stock"],
             "case_fan": ["price", "stock"],
         }
+
+        from .supabase_service import is_supabase_configured
+        supabase_ok = is_supabase_configured()
+
         for name, path in PATHS.items():
-            # Attempt to fetch from Supabase database first
-            df = fetch_table_as_dataframe(name)
-            
-            # Fallback to local CSV file if Supabase data is unavailable
+            df = None
+
+            # Primary source: Supabase database
+            if supabase_ok:
+                df = fetch_table_as_dataframe(name)
+                if df is not None and not df.empty:
+                    logger.info(f"Successfully loaded '{name}' dataset from Supabase database.")
+
+            # Fallback: local CSV (only if Supabase unavailable or failed)
             if df is None or df.empty:
-                logger.info(f"Loading '{name}' dataset from local CSV file: {path}")
-                df = pd.read_csv(path)
-            else:
-                logger.info(f"Successfully loaded '{name}' dataset from Supabase database.")
+                import os
+                if os.path.exists(path):
+                    logger.info(f"Loading '{name}' dataset from local CSV file: {path}")
+                    df = pd.read_csv(path)
+                else:
+                    # Neither Supabase nor CSV is available — fail with a clear message
+                    raise RuntimeError(
+                        f"Component data for '{name}' is unavailable. "
+                        f"Supabase {'is not configured' if not supabase_ok else 'returned no data'} "
+                        f"and the local CSV fallback does not exist at '{path}'. "
+                        f"Please ensure SUPABASE_URL and SUPABASE_SECRET_KEY are set in the deployment environment."
+                    )
 
             cols_to_convert = numeric_cols_map.get(name, ["price", "stock"])
             for col in cols_to_convert:

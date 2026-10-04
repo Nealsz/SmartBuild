@@ -6,12 +6,13 @@
 credentials.json
 secrets.json
 
-# Virtual environment
+# Virtual Environments
 smartbuild-env/
 venv/
 env/
+.venv/
 
-# Data
+# Data Files & Databases
 data/
 backend/data/
 *.csv
@@ -21,23 +22,32 @@ backend/data/
 __pycache__/
 *.py[cod]
 *.pyo
+*.pyd
 
-# Node
+# Node.js
 node_modules/
+.next/
+out/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# IDE
+# Logs & Temporary Files
+*.log
+*.tmp
+
+# IDE & Editor Configurations
 .vscode/
 .idea/
 *.code-workspace
 
-# OS
+# Operating System Files
 .DS_Store
 Thumbs.db
 
-# Non-runtime categorized folders (offline tools, evaluations, training)
+# Non-Runtime Categorized Folders (Offline Tools, Evaluations, Training)
 evaluations/
 data_tools/
 model_training/
+scripts/
+backend/scripts/

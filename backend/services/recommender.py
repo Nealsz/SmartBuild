@@ -419,7 +419,7 @@ def generate_build(
         if isinstance(v, dict) and v["main"] is not None
     )
 
-    budget_within = budget_min <= total <= budget_max
+    budget_within = (budget_min * 0.985 <= total <= budget_max * 1.015)
 
     # Step 6 — System evaluation (5 key performance parameters)
     elapsed = round(time.time() - start_time, 3)

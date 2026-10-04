@@ -42,6 +42,20 @@ def check_compatibility(
     case = build.get("case")
     cool = build.get("cpu_cooler")
 
+    # ── RULE 0: Required Components Presence ─────────────────────────────────
+    mandatory = {
+        "CPU": cpu,
+        "Motherboard": mb,
+        "RAM": ram,
+        "Storage": stor,
+        "PSU": psu,
+        "Case": case,
+        "CPU Cooler": cool,
+    }
+    for comp_name, comp_val in mandatory.items():
+        if comp_val is None:
+            results.append(("FAIL", f"{comp_name} Presence", f"Build is missing a {comp_name}"))
+
     # ── RULE 1: CPU ↔ Motherboard socket ──────────────────────────────────────
     if cpu is not None and mb is not None:
         cpu_socket = str(cpu.get("socket", ""))
@@ -52,11 +66,14 @@ def check_compatibility(
         else:
             results.append(("FAIL", "CPU ↔ Motherboard Socket",
                 f"CPU needs {cpu_socket}, motherboard has {mb_socket}"))
+    elif cpu is None or mb is None:
+        results.append(("FAIL", "CPU ↔ Motherboard Socket",
+            "Cannot verify socket match: CPU or Motherboard is missing"))
 
     # ── RULE 2: RAM DDR gen ↔ Motherboard ─────────────────────────────────────
     if ram is not None and mb is not None:
         ddr     = str(ram.get("ddr_gen", ""))
-        mb_name = str(mb.get("name", ""))
+        mb_name = str(mb.get("name", "")).upper()
         if ddr == "DDR5" and "DDR4" in mb_name:
             results.append(("FAIL", "RAM ↔ Motherboard DDR Gen",
                 "RAM is DDR5 but motherboard only supports DDR4"))
@@ -123,10 +140,20 @@ def check_compatibility(
             results.append(("PASS", "Storage Interface ↔ Motherboard",
                 f"{interface} is widely supported"))
 
-    # ── RULE 7: CPU cooler adequacy for CPU TDP ───────────────────────────────
+    # ── RULE 7: CPU cooler adequacy for CPU TDP & Socket ──────────────────────
     if cool is not None and cpu is not None:
         cpu_tdp   = float(cpu.get("tdp", 65))
         cool_size = cool.get("size")
+        cpu_sock  = str(cpu.get("socket", "")).upper()
+        cool_name = str(cool.get("name", "")).upper()
+
+        if "AM" in cpu_sock and "INTEL" in cool_name:
+            results.append(("FAIL", "CPU Cooler ↔ CPU Socket",
+                "Intel stock cooler is not compatible with AMD sockets"))
+        elif "LGA" in cpu_sock and "AMD" in cool_name:
+            results.append(("FAIL", "CPU Cooler ↔ CPU Socket",
+                "AMD stock cooler is not compatible with Intel LGA sockets"))
+
         is_aio    = (
             pd.notna(cool_size) and float(cool_size) > 0
             if cool_size is not None else False

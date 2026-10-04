@@ -455,9 +455,9 @@ def score_psu(df, cpu_tdp, gpu_est_watt):
 def score_motherboard(df, cpu_socket, ram_ddr_gen):
     df = df[df["socket"] == cpu_socket].copy()
     if ram_ddr_gen == "DDR5":
-        df = df[~df["name"].str.contains("DDR4", na=False)].copy()
+        df = df[df["name"].str.contains("DDR5", case=False, na=False) | ~df["name"].str.contains("DDR4", case=False, na=False)].copy()
     else:
-        df = df[df["name"].str.contains("DDR4", na=False) | ~df["name"].str.contains("DDR5", na=False)].copy()
+        df = df[df["name"].str.contains("DDR4", case=False, na=False) & ~df["name"].str.contains("DDR5", case=False, na=False)].copy()
     df = clean_numeric(df, ["max_memory","memory_slots","price"])
     if df.empty: return df
     df["final_score"] = minmax(minmax(df["max_memory"])*0.50 + minmax(df["memory_slots"])*0.30 + minmax(df["price"])*0.20)
@@ -481,9 +481,15 @@ def score_case_fan(df):
         df["final_score"] = minmax(df["price"] * -1)
     return df
 
-def score_cooler(df, cpu_tdp):
+def score_cooler(df, cpu_tdp, cpu_socket=None):
     df = df.copy()
     df["size"] = pd.to_numeric(df["size"], errors="coerce")
+    if cpu_socket is not None:
+        sock = str(cpu_socket).upper()
+        if "AM" in sock:
+            df = df[~df["name"].str.contains("Intel", case=False, na=False)].copy()
+        elif "LGA" in sock:
+            df = df[~df["name"].str.contains("AMD", case=False, na=False)].copy()
     if cpu_tdp >= 125:
         df["is_aio"] = df["size"].notna().astype(float)
         df["size"]   = df["size"].fillna(0)
@@ -722,22 +728,50 @@ def select_build(budget_min, budget_max, primary, secondary, resolution_target, 
         m_name = str(main_row.get("name", "")) if main_row is not None else ""
         return [r for r in cands if str(r.get("name", "")) != m_name][:n]
 
-    cpu_row = pick(score_cpu(dfs["cpu"], intent, tier_mult), caps["cpu"])
-    cpu_tdp = float(cpu_row.get("tdp", 65)) if cpu_row is not None else 65.0
-    cpu_sock = str(cpu_row.get("socket", "")) if cpu_row is not None else ""
+    # ── Socket affordability & valid sockets ────────────────────────────
+    mobo_df = dfs["motherboard"]
+    valid_sockets = set(mobo_df["socket"].dropna().unique())
 
-    # ── iGPU-skip: when the activity has negligible GPU demand AND the
-    # chosen CPU already has usable integrated graphics, skip the discrete
-    # GPU entirely rather than forcing the cheapest available card into
-    # every low-budget non-gaming build. GPU is the single largest
-    # BASE_ALLOC share (33%), so this frees real money for the
-    # redistribution pass below to spend on CPU/RAM/storage instead.
+    # GPU decision & affordability
     GPU_SKIP_DEMAND_THRESHOLD = 0.12
     gpu_demand = 0.55 * intent["gpu_compute"] + 0.45 * intent["vram"]
-    cpu_has_igpu = cpu_row is not None and pd.notna(cpu_row.get("graphics"))
-    skip_discrete_gpu = (gpu_demand <= GPU_SKIP_DEMAND_THRESHOLD) and cpu_has_igpu
+    cheapest_gpu_price = float(dfs["gpu"]["price"].min()) if not dfs["gpu"].empty else 13950.0
+    can_comfortably_afford_gpu = budget_mid >= (cheapest_gpu_price + 16000)
+    has_any_igpu_cpu = dfs["cpu"]["graphics"].notna().any()
+    skip_discrete_gpu = (gpu_demand <= GPU_SKIP_DEMAND_THRESHOLD) and has_any_igpu_cpu and (not can_comfortably_afford_gpu)
 
+    # A socket is affordable if min mobo + min cpu + min ram + (cheapest gpu if needed) + rest <= budget_max
+    min_core_cost_by_socket = {
+        "AM4": 9000,
+        "AM5": 24000,
+        "LGA1700": 23500,
+        "LGA1200": 25000,
+        "sTRX40": 50000,
+        "LGA1851": 50000,
+    }
+    est_other_parts = (cheapest_gpu_price + 6000) if not skip_discrete_gpu else 6000
+    affordable_sockets = {
+        sock for sock in valid_sockets
+        if (min_core_cost_by_socket.get(sock, 30000) + est_other_parts) <= (budget_max * 1.05)
+    }
+    if not affordable_sockets:
+        affordable_sockets = {"AM4"} # Fallback to cheapest universally compatible socket
+
+    cpu_candidates = dfs["cpu"][dfs["cpu"]["socket"].isin(affordable_sockets)].copy()
+
+    # If skipping discrete GPU, CPU MUST have integrated graphics
     if skip_discrete_gpu:
+        igpu_candidates = cpu_candidates[cpu_candidates["graphics"].notna()]
+        if not igpu_candidates.empty:
+            cpu_candidates = igpu_candidates
+
+    scored_cpu = score_cpu(cpu_candidates, intent, tier_mult)
+    cpu_row = pick(scored_cpu, caps["cpu"])
+    cpu_tdp = float(cpu_row.get("tdp", 65)) if cpu_row is not None else 65.0
+    cpu_sock = str(cpu_row.get("socket", "")) if cpu_row is not None else "AM4"
+    cpu_has_igpu = cpu_row is not None and pd.notna(cpu_row.get("graphics"))
+
+    if skip_discrete_gpu and cpu_has_igpu:
         gpu_row = None
         gpu_est_watt = 0  # iGPU power draw is already covered by cpu_tdp
     else:
@@ -745,22 +779,40 @@ def select_build(budget_min, budget_max, primary, secondary, resolution_target, 
         gpu_chip = str(gpu_row.get("chipset", "")) if gpu_row is not None else ""
         gpu_est_watt = next((tdp for k, tdp in GPU_TDP_MAP.items() if k in gpu_chip), 200)
 
-    # If CPU socket strictly mandates DDR5 (e.g. AM5), restrict RAM candidates to DDR5
+    # Restrict RAM candidates by socket generation requirements
     ram_df = dfs["ram"]
-    if cpu_sock == "AM5":
+    if cpu_sock in ("AM5", "LGA1700", "LGA1851"):
         ram_df = ram_df[ram_df["ddr_gen"] == "DDR5"]
+    elif cpu_sock in ("AM4", "LGA1200"):
+        ram_df = ram_df[ram_df["ddr_gen"] == "DDR4"]
 
     ram_row = pick(score_ram(ram_df, intent, tier_mult), caps["ram"])
     ram_ddr = str(ram_row.get("ddr_gen", "DDR4")) if ram_row is not None else "DDR4"
 
     mb_row = pick(score_motherboard(dfs["motherboard"], cpu_sock, ram_ddr), caps["motherboard"])
+    if mb_row is None:
+        # Fallback to cheapest motherboard for this socket
+        sock_mobos = dfs["motherboard"][dfs["motherboard"]["socket"] == cpu_sock].sort_values("price")
+        if not sock_mobos.empty:
+            mb_row = sock_mobos.iloc[0]
+            # Ensure RAM DDR matches the fallback motherboard
+            mb_name = str(mb_row.get("name", "")).upper()
+            if "DDR5" in mb_name:
+                ram_df = dfs["ram"][dfs["ram"]["ddr_gen"] == "DDR5"]
+                ram_row = pick(score_ram(ram_df, intent, tier_mult), caps["ram"])
+                ram_ddr = "DDR5"
+            else:
+                ram_df = dfs["ram"][dfs["ram"]["ddr_gen"] == "DDR4"]
+                ram_row = pick(score_ram(ram_df, intent, tier_mult), caps["ram"])
+                ram_ddr = "DDR4"
+
     mobo_ff  = str(mb_row.get("form_factor", "ATX")) if mb_row is not None else "ATX"
     pcie5_ok = any(c in str(mb_row.get("name", "")) for c in PCIE5_CHIPSETS) if mb_row is not None else False
 
     stor_row = pick(score_storage(dfs["storage"], intent, tier_mult, pcie5_ok=pcie5_ok), caps["storage"])
     psu_row  = pick(score_psu(dfs["psu"], cpu_tdp, gpu_est_watt), caps["psu"])
     case_row = pick(score_case(dfs["case"], mobo_ff), caps["case"])
-    cool_row = pick(score_cooler(dfs["cpu_cooler"], cpu_tdp), caps["cpu_cooler"])
+    cool_row = pick(score_cooler(dfs["cpu_cooler"], cpu_tdp, cpu_sock), caps["cpu_cooler"])
     fan_row  = pick(score_case_fan(dfs["case_fan"]), caps["case_fan"]) if "case_fan" in dfs else None
 
     picks = {"cpu": cpu_row, "gpu": gpu_row, "ram": ram_row, "motherboard": mb_row,
@@ -768,31 +820,23 @@ def select_build(budget_min, budget_max, primary, secondary, resolution_target, 
              "case_fan": fan_row}
 
     # ── Leftover-budget redistribution ──────────────────────────────────
-    # v3's own caps are correctly sized, but at wide/high budget tiers the
-    # catalog itself runs out of pricier options before the cap is used up.
-    # That leaves total spend well under budget_min even though every
-    # category was filled optimally within its own slice. Walk categories
-    # that DO still have room between their pick's price and budget_max,
-    # and upgrade one step at a time to the next-better already-scored
-    # alternate, stopping once spend reaches budget_min or no category has
-    # a valid upgrade left.
     def _total(p):
         return sum(float(r["price"]) for r in p.values() if r is not None and "price" in r)
 
+    # Strictly constrain CPU pool to chosen socket and RAM pool to chosen DDR generation
+    # so upgrades never break motherboard socket or memory compatibility
+    cpu_upgrade_pool = cpu_candidates[cpu_candidates["socket"] == cpu_sock]
+    if skip_discrete_gpu:
+        cpu_upgrade_pool = cpu_upgrade_pool[cpu_upgrade_pool["graphics"].notna()]
+
     scored_pools = {
-        "cpu": score_cpu(dfs["cpu"], intent, tier_mult),
-        "gpu": score_gpu(dfs["gpu"], intent, tier_mult),
+        "cpu": score_cpu(cpu_upgrade_pool, intent, tier_mult),
         "ram": score_ram(ram_df, intent, tier_mult),
         "storage": score_storage(dfs["storage"], intent, tier_mult, pcie5_ok=pcie5_ok),
+        "case": score_case(dfs["case"], mobo_ff),
     }
-    # If the discrete GPU was skipped, the CPU's integrated graphics is the
-    # ONLY video output -- an upgrade must never swap in a non-iGPU CPU, or
-    # the build ends up with no way to display anything at all. Constrain
-    # the CPU upgrade pool to iGPU-capable chips for the rest of this pass.
-    # (Found by running the full pipeline against real catalog data — see
-    # the module docstring.)
-    if skip_discrete_gpu:
-        scored_pools["cpu"] = scored_pools["cpu"][scored_pools["cpu"]["graphics"].notna()]
+    if not skip_discrete_gpu and gpu_row is not None:
+        scored_pools["gpu"] = score_gpu(dfs["gpu"], intent, tier_mult)
 
     total_price = _total(picks)
     max_upgrade_passes = 12  # safety bound, not expected to be hit
@@ -819,14 +863,14 @@ def select_build(budget_min, budget_max, primary, secondary, resolution_target, 
             break  # catalog genuinely has nothing left to upgrade to
 
     alternates = {
-        "cpu":         alternates_cpu(score_cpu(dfs["cpu"], intent, tier_mult), caps["cpu"], mb_row, picks["cpu"]),
+        "cpu":         alternates_cpu(score_cpu(cpu_candidates, intent, tier_mult), caps["cpu"], mb_row, picks["cpu"]),
         "ram":         alternates_ram(score_ram(ram_df, intent, tier_mult), caps["ram"], mb_row, ram_row),
         "psu":         alternates_psu(score_psu(dfs["psu"], cpu_tdp, gpu_est_watt), caps["psu"], cpu_tdp, gpu_est_watt, psu_row),
         "gpu":         alternates_gpu(score_gpu(dfs["gpu"], intent, tier_mult), caps["gpu"], psu_row, cpu_tdp, picks["gpu"]),
         "motherboard": alternates_motherboard(score_motherboard(dfs["motherboard"], cpu_sock, ram_ddr), caps["motherboard"], case_row, mb_row),
         "storage":     alternates_generic(score_storage(dfs["storage"], intent, tier_mult, pcie5_ok=pcie5_ok), caps["storage"], picks["storage"]),
         "case":        alternates_generic(score_case(dfs["case"], mobo_ff), caps["case"], case_row),
-        "cpu_cooler":  alternates_generic(score_cooler(dfs["cpu_cooler"], cpu_tdp), caps["cpu_cooler"], cool_row),
+        "cpu_cooler":  alternates_generic(score_cooler(dfs["cpu_cooler"], cpu_tdp, cpu_sock), caps["cpu_cooler"], cool_row),
         "case_fan":    alternates_generic(score_case_fan(dfs["case_fan"]), caps["case_fan"], fan_row) if "case_fan" in dfs else [],
     }
 

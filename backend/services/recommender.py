@@ -19,7 +19,7 @@ import pandas as pd
 import joblib
 
 import logging
-from config import PATHS, MODEL_PATH, ENCODERS_PATH, GPU_TDP_MAP, MIN_BUDGET_PATH
+from config import PATHS, MODEL_PATH, ENCODERS_PATH, GPU_TDP_MAP, MIN_BUDGET_PATH, TIER_BOUNDARIES
 from .intent_classifier import build_feature_vector, compute_intent
 from .selector import select_build
 from .compatibility import check_compatibility, summarise
@@ -138,6 +138,43 @@ def _is_v3_model(artifact: dict) -> bool:
     return any(c.startswith("share_") for c in target_cols)
 
 
+# ── Tier helpers ───────────────────────────────────────────────────────────────
+
+def _price_to_tier(component: str, price: float) -> str:
+    """
+    Map a component price to its tier label using TIER_BOUNDARIES.
+    budget < 25th percentile <= mid < 75th <= high < 90th <= enthusiast
+    """
+    bounds = TIER_BOUNDARIES.get(component)
+    if bounds is None or price is None:
+        return "mid"
+    if price < bounds[0]:
+        return "budget"
+    elif price < bounds[1]:
+        return "mid"
+    elif price < bounds[2]:
+        return "high"
+    else:
+        return "enthusiast"
+
+
+def derive_tiers_from_picks(picks: dict) -> dict[str, str]:
+    """
+    Given a dict of {component: pd.Series|dict} (the selected build parts),
+    classify each component into its price tier using TIER_BOUNDARIES.
+    """
+    tiers = {}
+    for comp, row in picks.items():
+        if row is None:
+            continue
+        try:
+            price = float(row.get("price", 0) or 0)
+        except (TypeError, ValueError):
+            price = 0.0
+        tiers[comp] = _price_to_tier(comp, price)
+    return tiers
+
+
 # ── RF inference ───────────────────────────────────────────────────────────────
 def predict_tiers(feature_vector: dict) -> tuple[dict[str, str], dict[str, float]]:
     """
@@ -145,17 +182,22 @@ def predict_tiers(feature_vector: dict) -> tuple[dict[str, str], dict[str, float
     Returns:
         tiers       – e.g. {"cpu": "mid", "gpu": "high", ...}
         confidences – e.g. {"cpu": 95.2, "gpu": 88.1, ...} (percentages)
+
+    NOTE: For the v3 model, tiers are NOT returned here (the v3 model
+    predicts budget *shares*, not discrete tiers). Tiers should be derived
+    after selection using derive_tiers_from_picks().
     """
     artifact, encoders = _load_model()
 
     if _is_v3_model(artifact):
-        # v3 allocation share model: R^2-based confidences
+        # v3 allocation share model — confidences are the training-time R² scores
         confidences = {
             "cpu": 97.4, "gpu": 98.3, "motherboard": 97.8, "ram": 96.5,
             "storage": 92.7, "psu": 97.8, "cpu_cooler": 97.4, "case": 98.8,
         }
-        tiers = {k: "mid" for k in confidences}
-        return tiers, confidences
+        # Tiers are not known yet at this stage (depend on picks); return empty.
+        # generate_build() will call derive_tiers_from_picks() after selection.
+        return {}, confidences
 
     cols = [c for c in artifact["feature_cols"] if c in feature_vector]
     feat_df = pd.DataFrame([feature_vector])[cols]
@@ -326,7 +368,7 @@ def generate_build(
             select_build as v3_select_build,
             predict_allocation as v3_predict_allocation,
         )
-        tiers, confidences = predict_tiers(features)
+        _tiers_placeholder, confidences = predict_tiers(features)
         shares = v3_predict_allocation(
             primary_activity, secondary_activity, resolution_target
         )
@@ -337,6 +379,8 @@ def generate_build(
             shares=shares,
         )
         build = _serialise_v3_build(picks, alternates)
+        # Derive real tiers from the actual selected component prices
+        tiers = derive_tiers_from_picks(picks)
 
         # Derive PSU watt bounds from the chosen PSU for compat check
         psu_row = picks.get("psu")

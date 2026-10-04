@@ -8,7 +8,9 @@ __pycache__/
 smartbuild-env/
 
 # Data files
-# *.csv
+data/
+*.csv
+*.sqlite3
 # *.pkl
 
 # IDE-specific files
@@ -22,3 +24,9 @@ Thumbs.db
 # Logs
 *.log
 *.tmp
+
+# Non-runtime categorized folders (offline tools, evaluations, training)
+evaluations/
+data_tools/
+model_training/
+scripts/

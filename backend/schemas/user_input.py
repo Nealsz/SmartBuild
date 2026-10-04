@@ -1,10 +1,10 @@
 from pydantic import BaseModel, field_validator
 from typing import Optional
 
-from config import ACTIVITY_WEIGHTS, LONGEVITY_MULTIPLIER
+from config import ACTIVITY_WEIGHTS, RESOLUTION_TARGET_WEIGHTS
 
 VALID_ACTIVITIES = list(ACTIVITY_WEIGHTS.keys())
-VALID_LONGEVITY = list(LONGEVITY_MULTIPLIER.keys())
+VALID_RESOLUTION_TARGETS = list(RESOLUTION_TARGET_WEIGHTS.keys())
 
 
 class UserInput(BaseModel):
@@ -12,8 +12,7 @@ class UserInput(BaseModel):
     max_budget:         int
     primary_activity:   str
     secondary_activity: Optional[str] = None
-    longevity:          str = "3-5 years"
-    upgrade_open:       bool = False
+    resolution_target:  str = "1080p 144Hz+ (FHD High FPS)"
 
     @field_validator("primary_activity")
     @classmethod
@@ -38,13 +37,13 @@ class UserInput(BaseModel):
             )
         return v
 
-    @field_validator("longevity")
+    @field_validator("resolution_target")
     @classmethod
-    def validate_longevity(cls, v: str) -> str:
-        if v not in VALID_LONGEVITY:
+    def validate_resolution_target(cls, v: str) -> str:
+        if v not in VALID_RESOLUTION_TARGETS:
             raise ValueError(
-                f"Invalid longevity '{v}'. "
-                f"Must be one of: {VALID_LONGEVITY}"
+                f"Invalid resolution_target '{v}'. "
+                f"Must be one of: {VALID_RESOLUTION_TARGETS}"
             )
         return v
 

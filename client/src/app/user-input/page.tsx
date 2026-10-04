@@ -4,34 +4,103 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-const ACTIVITY_OPTIONS = [
-  "Browsing & Streaming",
-  "Documents / Office Work",
-  "Gaming",
-  "Video Editing",
-  "Photo / Graphic Design",
-  "3D Modeling or Animation",
-  "Music Production",
-  "Programming or Development",
-  "Streaming / Recording",
-  "Simulations / Data Analysis",
+type ActivityDetail = {
+  value: string;
+  description: string;
+  focus: string;
+};
+
+const ACTIVITIES: ActivityDetail[] = [
+  {
+    value: "Gaming",
+    description: "Esports, AAA titles, high FPS & ray tracing",
+    focus: "High GPU compute & VRAM",
+  },
+  {
+    value: "Video Editing",
+    description: "4K/1080p timeline playback, rendering & export",
+    focus: "Multi-core CPU & 32GB+ RAM",
+  },
+  {
+    value: "Photo / Graphic Design",
+    description: "Photoshop, Illustrator & high-res vector canvas",
+    focus: "Fast single-core CPU & RAM",
+  },
+  {
+    value: "3D Modeling or Animation",
+    description: "Blender, Maya, CAD & real-time 3D viewports",
+    focus: "Heavy GPU compute & CPU threads",
+  },
+  {
+    value: "Programming or Development",
+    description: "Compilers, Docker containers, IDEs & emulators",
+    focus: "Fast CPU, 32GB RAM & NVMe SSD",
+  },
+  {
+    value: "Streaming / Recording",
+    description: "Live broadcasting while capturing games or apps",
+    focus: "Multi-core CPU & GPU encoder",
+  },
+  {
+    value: "Music Production",
+    description: "DAWs, virtual instruments & multi-track mixing",
+    focus: "Low-latency CPU & fast storage",
+  },
+  {
+    value: "Simulations / Data Analysis",
+    description: "Scientific computing, data science & analytics",
+    focus: "Max RAM capacity & CPU cores",
+  },
+  {
+    value: "Documents / Office Work",
+    description: "Spreadsheets, multi-tasking & administrative apps",
+    focus: "Responsive CPU & fast NVMe SSD",
+  },
+  {
+    value: "Browsing & Streaming",
+    description: "Web research, 4K media consumption & daily use",
+    focus: "Balanced entry hardware",
+  },
 ];
 
-const LONGEVITY_OPTIONS = [
-  { value: "1-2 years", label: "1–2 years", description: "Current-gen on a strict budget" },
-  { value: "3-5 years", label: "3–5 years", description: "Balanced long-term usability" },
-  { value: "5+ years", label: "5+ years", description: "Enthusiast-tier longevity" },
+const ACTIVITY_OPTIONS = ACTIVITIES.map((a) => a.value);
+
+const RESOLUTION_OPTIONS = [
+  {
+    value: "1080p 60Hz (FHD Standard)",
+    label: "1080p 60Hz",
+    description: "Standard Full HD — casual use & office work",
+  },
+  {
+    value: "1080p 144Hz+ (FHD High FPS)",
+    label: "1080p 144Hz+",
+    description: "High-FPS Full HD — competitive gaming",
+  },
+  {
+    value: "1440p 60-144Hz (QHD Standard)",
+    label: "1440p 60–144Hz",
+    description: "Quad HD — sharp visuals & smooth gameplay",
+  },
+  {
+    value: "1440p 165Hz+ (QHD High FPS)",
+    label: "1440p 165Hz+",
+    description: "QHD High FPS — enthusiast 1440p gaming",
+  },
+  {
+    value: "4K 60Hz+ (UHD Ultra)",
+    label: "4K 60Hz+",
+    description: "Ultra HD — 4K productivity & content creation",
+  },
 ];
 
-const STEPS = ["budget", "primary", "secondary", "longevity", "upgrade"] as const;
+const STEPS = ["budget", "primary", "secondary", "resolution"] as const;
 type Step = (typeof STEPS)[number];
 
 const STEP_LABELS: Record<Step, string> = {
   budget: "Budget",
   primary: "Primary Use",
   secondary: "Secondary Use",
-  longevity: "Longevity",
-  upgrade: "Upgrades",
+  resolution: "Display",
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -48,8 +117,7 @@ export default function UserInputPage() {
   const [baseFormattedBudget, setBaseFormattedBudget] = useState<string>("");
   const [primaryActivity, setPrimaryActivity] = useState("");
   const [secondaryActivity, setSecondaryActivity] = useState("");
-  const [longevity, setLongevity] = useState("3-5 years");
-  const [upgradeOpen, setUpgradeOpen] = useState<boolean | null>(null);
+  const [resolutionTarget, setResolutionTarget] = useState("1080p 144Hz+ (FHD High FPS)");
 
   const [budgetError, setBudgetError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -129,8 +197,7 @@ export default function UserInputPage() {
           max_budget: parseBudget(maxBudget),
           primary_activity: primaryActivity,
           secondary_activity: secondaryActivity || "",
-          longevity,
-          upgrade_open: upgradeOpen ?? false,
+          resolution_target: resolutionTarget,
         }),
       });
 
@@ -148,8 +215,7 @@ export default function UserInputPage() {
           max_budget: parseBudget(maxBudget),
           primary_activity: primaryActivity,
           secondary_activity: secondaryActivity || null,
-          longevity,
-          upgrade_open: upgradeOpen ?? false,
+          resolution_target: resolutionTarget,
         })
       );
       router.push("/build-result");
@@ -361,30 +427,46 @@ export default function UserInputPage() {
                   Select the primary purpose. The AI weights hardware differently based on this choice.
                 </p>
               </div>
-              <div className="grid gap-2 text-sm sm:grid-cols-2">
-                {ACTIVITY_OPTIONS.map((label) => (
-                  <button
-                    key={label}
-                    type="button"
-                    id={`primary-${label.replace(/[\s\/&]/g, "-").toLowerCase()}`}
-                    onClick={() => {
-                      setPrimaryActivity(label);
-                      if (secondaryActivity === label) setSecondaryActivity("");
-                    }}
-                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
-                      primaryActivity === label
-                        ? "border-amber-400/60 bg-amber-400/15 text-white shadow-[0_0_20px_-8px_rgba(251,191,36,0.3)]"
-                        : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90"
-                    }`}
-                  >
-                    <span
-                      className={`h-2 w-2 rounded-full shrink-0 transition ${
-                        primaryActivity === label ? "bg-amber-300" : "bg-white/20"
+              <div className="grid gap-3 text-sm sm:grid-cols-2">
+                {ACTIVITIES.map((act) => {
+                  const isSelected = primaryActivity === act.value;
+                  return (
+                    <button
+                      key={act.value}
+                      type="button"
+                      id={`primary-${act.value.replace(/[\s\/&]/g, "-").toLowerCase()}`}
+                      onClick={() => {
+                        setPrimaryActivity(act.value);
+                        if (secondaryActivity === act.value) setSecondaryActivity("");
+                      }}
+                      className={`flex flex-col gap-2 rounded-2xl border p-4 text-left transition ${
+                        isSelected
+                          ? "border-amber-400/60 bg-amber-400/15 text-white shadow-[0_0_20px_-8px_rgba(251,191,36,0.3)]"
+                          : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90"
                       }`}
-                    />
-                    {label}
-                  </button>
-                ))}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="font-semibold text-white truncate">{act.value}</span>
+                        </div>
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full shrink-0 transition ${
+                            isSelected ? "bg-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.8)]" : "bg-white/20"
+                          }`}
+                        />
+                      </div>
+                      <p className="text-xs text-white/50 leading-relaxed">
+                        {act.description}
+                      </p>
+                      <div className="mt-auto pt-1 flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] text-white/40 font-mono">Priority:</span>
+                        <span className="rounded-md border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-200/90 font-medium">
+                          {act.focus}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
               <div className="flex items-center justify-between pt-1">
                 <button
@@ -427,44 +509,67 @@ export default function UserInputPage() {
                   If you plan to use the PC for something else too, select it here. This helps balance the build.
                 </p>
               </div>
-              <div className="grid gap-2 text-sm sm:grid-cols-2">
+              <div className="grid gap-3 text-sm sm:grid-cols-2">
                 <button
                   type="button"
                   id="secondary-none"
                   onClick={() => setSecondaryActivity("")}
-                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                  className={`flex flex-col gap-2 rounded-2xl border p-4 text-left transition sm:col-span-2 ${
                     secondaryActivity === ""
-                      ? "border-blue-400/60 bg-blue-400/15 text-white"
+                      ? "border-blue-400/60 bg-blue-400/15 text-white shadow-[0_0_20px_-8px_rgba(59,130,246,0.3)]"
                       : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90"
                   }`}
                 >
-                  <span
-                    className={`h-2 w-2 rounded-full shrink-0 transition ${
-                      secondaryActivity === "" ? "bg-blue-300" : "bg-white/20"
-                    }`}
-                  />
-                  None
-                </button>
-                {ACTIVITY_OPTIONS.filter((a) => a !== primaryActivity).map((label) => (
-                  <button
-                    key={label}
-                    type="button"
-                    id={`secondary-${label.replace(/[\s\/&]/g, "-").toLowerCase()}`}
-                    onClick={() => setSecondaryActivity(label)}
-                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
-                      secondaryActivity === label
-                        ? "border-blue-400/60 bg-blue-400/15 text-white shadow-[0_0_20px_-8px_rgba(59,130,246,0.3)]"
-                        : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90"
-                    }`}
-                  >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-semibold text-white">None (Dedicated Build)</span>
+                    </div>
                     <span
-                      className={`h-2 w-2 rounded-full shrink-0 transition ${
-                        secondaryActivity === label ? "bg-blue-300" : "bg-white/20"
+                      className={`h-2.5 w-2.5 rounded-full shrink-0 transition ${
+                        secondaryActivity === "" ? "bg-blue-300 shadow-[0_0_8px_rgba(59,130,246,0.8)]" : "bg-white/20"
                       }`}
                     />
-                    {label}
-                  </button>
-                ))}
+                  </div>
+                  <p className="text-xs text-white/50">
+                    Dedicate 100% of the hardware budget and tier weighting purely to your primary activity.
+                  </p>
+                </button>
+                {ACTIVITIES.filter((a) => a.value !== primaryActivity).map((act) => {
+                  const isSelected = secondaryActivity === act.value;
+                  return (
+                    <button
+                      key={act.value}
+                      type="button"
+                      id={`secondary-${act.value.replace(/[\s\/&]/g, "-").toLowerCase()}`}
+                      onClick={() => setSecondaryActivity(act.value)}
+                      className={`flex flex-col gap-2 rounded-2xl border p-4 text-left transition ${
+                        isSelected
+                          ? "border-blue-400/60 bg-blue-400/15 text-white shadow-[0_0_20px_-8px_rgba(59,130,246,0.3)]"
+                          : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="font-semibold text-white truncate">{act.value}</span>
+                        </div>
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full shrink-0 transition ${
+                            isSelected ? "bg-blue-300 shadow-[0_0_8px_rgba(59,130,246,0.8)]" : "bg-white/20"
+                          }`}
+                        />
+                      </div>
+                      <p className="text-xs text-white/50 leading-relaxed">
+                        {act.description}
+                      </p>
+                      <div className="mt-auto pt-1 flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] text-white/40 font-mono">Priority:</span>
+                        <span className="rounded-md border border-blue-400/25 bg-blue-400/10 px-2 py-0.5 text-[10px] text-blue-200/90 font-medium">
+                          {act.focus}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
               <div className="flex items-center justify-between pt-1">
                 <button
@@ -478,7 +583,7 @@ export default function UserInputPage() {
                 <button
                   type="button"
                   id="secondary-next-btn"
-                  onClick={() => transitionTo("longevity")}
+                  onClick={() => transitionTo("resolution")}
                   className="flex items-center gap-2 rounded-full bg-amber-300 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition"
                 >
                   Continue
@@ -488,27 +593,25 @@ export default function UserInputPage() {
             </div>
           )}
 
-          {/* ── STEP 4: LONGEVITY ────────────────────────────── */}
-          {step === "longevity" && (
+          {/* ── STEP 4: RESOLUTION & REFRESH RATE ───────────── */}
+          {step === "resolution" && (
             <div className="grid gap-5">
               <div>
-                <h2 className="font-heading text-2xl">How long should it last?</h2>
+                <h2 className="font-heading text-2xl">What screen are you targeting?</h2>
                 <p className="mt-1 text-sm text-white/50">
-                  How long do you expect this build to remain highly capable?
+                  Select your monitor resolution &amp; refresh rate. The AI uses this to scale GPU VRAM requirements and compute throughput.
                 </p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {LONGEVITY_OPTIONS.map((opt) => (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {RESOLUTION_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
-                    id={`longevity-${opt.value.replace(/[\s+]/g, "-").toLowerCase()}`}
-                    onClick={() => {
-                      setLongevity(opt.value);
-                    }}
+                    id={`resolution-${opt.value.replace(/[\s+().]/g, "-").toLowerCase()}`}
+                    onClick={() => setResolutionTarget(opt.value)}
                     className={`flex flex-col gap-1.5 rounded-2xl border px-4 py-4 text-left transition ${
-                      longevity === opt.value
-                        ? "border-emerald-400/60 bg-emerald-400/15 text-white shadow-[0_0_20px_-8px_rgba(52,211,153,0.3)]"
+                      resolutionTarget === opt.value
+                        ? "border-violet-400/60 bg-violet-400/15 text-white shadow-[0_0_20px_-8px_rgba(167,139,250,0.4)]"
                         : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90"
                     }`}
                   >
@@ -517,6 +620,12 @@ export default function UserInputPage() {
                   </button>
                 ))}
               </div>
+              {error && (
+                <div className="rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+                  {error}
+                </div>
+              )}
+
               <div className="flex items-center justify-between pt-1">
                 <button
                   type="button"
@@ -527,108 +636,25 @@ export default function UserInputPage() {
                   Back
                 </button>
                 <button
-                  type="button"
-                  id="longevity-next-btn"
-                  onClick={() => transitionTo("upgrade")}
-                  className="flex items-center gap-2 rounded-full bg-amber-300 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition"
-                >
-                  Continue
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── STEP 5: UPGRADE OPENNESS ─────────────────────── */}
-          {step === "upgrade" && (
-            <div className="grid gap-5">
-              <div>
-                <h2 className="font-heading text-2xl">Open to future upgrades?</h2>
-                <p className="mt-1 text-sm text-white/50">
-                  If yes, the AI may select newer platforms and higher wattage PSUs to accommodate future, more powerful components.
-                </p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  id="upgrade-yes"
-                  onClick={() => setUpgradeOpen(true)}
-                  className={`flex items-center gap-3 rounded-2xl border px-4 py-4 text-left transition ${
-                    upgradeOpen === true
-                      ? "border-emerald-400/60 bg-emerald-400/15 text-white shadow-[0_0_20px_-8px_rgba(52,211,153,0.3)]"
-                      : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90"
-                  }`}
-                >
-                  <span
-                    className={`h-2 w-2 rounded-full shrink-0 transition ${
-                      upgradeOpen === true ? "bg-emerald-300" : "bg-white/20"
-                    }`}
-                  />
-                  <span>
-                    <span className="block text-sm font-semibold">Yes — future-proof my build</span>
-                    <span className="text-xs text-white/50">Prioritize upgrade headroom</span>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  id="upgrade-no"
-                  onClick={() => setUpgradeOpen(false)}
-                  className={`flex items-center gap-3 rounded-2xl border px-4 py-4 text-left transition ${
-                    upgradeOpen === false
-                      ? "border-emerald-400/60 bg-emerald-400/15 text-white shadow-[0_0_20px_-8px_rgba(52,211,153,0.3)]"
-                      : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90"
-                  }`}
-                >
-                  <span
-                    className={`h-2 w-2 rounded-full shrink-0 transition ${
-                      upgradeOpen === false ? "bg-emerald-300" : "bg-white/20"
-                    }`}
-                  />
-                  <span>
-                    <span className="block text-sm font-semibold">No — optimize for now</span>
-                    <span className="text-xs text-white/50">Maximize current performance</span>
-                  </span>
-                </button>
-              </div>
-
-              {error && (
-                <div className="rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-1">
-                <button
-                  type="button"
-                  onClick={() => transitionTo("longevity")}
-                  className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1.5"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                  Back
-                </button>
-                <button
                   id="generate-build-btn"
                   type="button"
-                  disabled={upgradeOpen === null || loading}
+                  disabled={loading}
                   onClick={handleSubmit}
                   className={`flex items-center gap-2 rounded-full px-8 py-3 text-sm font-semibold transition shadow-lg ${
-                    upgradeOpen !== null && !loading
+                    !loading
                       ? "bg-amber-300 text-slate-950 shadow-amber-400/30 hover:bg-amber-200 cursor-pointer"
                       : "bg-white/10 text-white/30 cursor-not-allowed"
                   }`}
                 >
                   {loading ? (
-                    <span className="flex items-center gap-2">
-                      <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Generating Build…
-                    </span>
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
+                      Generating...
+                    </>
                   ) : (
                     <>
                       Generate Build
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                     </>
                   )}
                 </button>

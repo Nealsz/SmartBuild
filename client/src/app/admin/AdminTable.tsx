@@ -340,6 +340,27 @@ export default function AdminTable({ category, onCountChange }: Props) {
                       >
                         {rawVal == null ? (
                           <span className="text-slate-600">—</span>
+                        ) : col === "stock" && !isNaN(Number(rawVal)) ? (
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              Number(rawVal) === 0
+                                ? "border border-red-500/30 bg-red-500/10 text-red-300"
+                                : Number(rawVal) <= 3
+                                ? "border border-amber-500/30 bg-amber-500/10 text-amber-300"
+                                : "border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                            }`}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                Number(rawVal) === 0
+                                  ? "bg-red-400"
+                                  : Number(rawVal) <= 3
+                                  ? "bg-amber-400"
+                                  : "bg-emerald-400"
+                              }`}
+                            />
+                            {Number(rawVal).toLocaleString()} in stock
+                          </span>
                         ) : (
                           displayStr
                         )}
@@ -353,14 +374,14 @@ export default function AdminTable({ category, onCountChange }: Props) {
                         onClick={() => setEditRow(row)}
                         className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/10 hover:text-white"
                       >
-                        ✏️ Edit
+                        Edit
                       </button>
                       <button
                         id={`delete-btn-${idx}`}
                         onClick={() => setDeleteRow(row)}
                         className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-xs text-red-400 transition hover:bg-red-500/20"
                       >
-                        🗑️ Delete
+                        Delete
                       </button>
                     </div>
                   </td>

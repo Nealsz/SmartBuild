@@ -1,7 +1,7 @@
 {
-  "min_budget": 29878,
-  "exact_min_budget": 29878.12,
-  "formatted_min_budget": "\u20b129,878",
+  "min_budget": 29820,
+  "exact_min_budget": 29820.12,
+  "formatted_min_budget": "\u20b129,820",
   "parts": {
     "cpu": {
       "name": "AMD Ryzen 5 5500",
@@ -13,7 +13,7 @@
     },
     "ram": {
       "name": "Patriot Viper Venom 16 GB",
-      "price": 2841.42
+      "price": 2783.42
     },
     "storage": {
       "name": "KingSpec XG7000",
@@ -25,7 +25,7 @@
     },
     "psu": {
       "name": "CoolMax V-400",
-      "price": 1449.4199999999998
+      "price": 1449.42
     },
     "case": {
       "name": "Cooler Master MasterBox Q300L",

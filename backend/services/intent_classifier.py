@@ -1,25 +1,41 @@
 """
 services/intent_classifier.py
-Converts user inputs into the 12-feature vector the RF model expects.
+Converts user inputs into the 11-feature vector the RF model expects.
 No ML logic here — pure feature engineering.
 """
 
-from config import ACTIVITY_WEIGHTS, LONGEVITY_MULTIPLIER
+from config import ACTIVITY_WEIGHTS, RESOLUTION_TARGET_WEIGHTS
 
 
-def compute_intent(primary: str, secondary: str | None = None) -> dict[str, float]:
+def compute_intent(
+    primary: str,
+    secondary: str | None = None,
+    resolution_target: str = "1080p 144Hz+ (FHD High FPS)",
+) -> dict[str, float]:
     """
-    Blend primary (70%) and secondary (30%) activity dimension weights.
-    If no secondary, primary gets 100% weight.
+    Blend primary (70%) and secondary (30%) activity dimension weights,
+    then apply resolution & refresh rate scaling boosts to VRAM, GPU compute, and CPU single core.
     """
     dims = ["cpu_single", "cpu_multi", "gpu_compute", "vram", "ram_cap", "storage_spd"]
     p = ACTIVITY_WEIGHTS[primary]
 
     if secondary:
         s = ACTIVITY_WEIGHTS[secondary]
-        return {d: round(p[d] * 0.70 + s[d] * 0.30, 4) for d in dims}
+        base_intent = {d: p[d] * 0.70 + s[d] * 0.30 for d in dims}
+    else:
+        base_intent = {d: p[d] for d in dims}
 
-    return {d: p[d] for d in dims}
+    # Resolution / Refresh Rate weighting adjustment
+    res_weights = RESOLUTION_TARGET_WEIGHTS.get(
+        resolution_target,
+        RESOLUTION_TARGET_WEIGHTS["1080p 144Hz+ (FHD High FPS)"],
+    )
+
+    base_intent["vram"] *= res_weights["vram_mult"]
+    base_intent["gpu_compute"] *= res_weights["gpu_compute_mult"]
+    base_intent["cpu_single"] *= res_weights["cpu_single_mult"]
+
+    return {d: round(val, 4) for d, val in base_intent.items()}
 
 
 def build_feature_vector(
@@ -27,11 +43,10 @@ def build_feature_vector(
     budget_max: int,
     primary: str,
     secondary: str | None,
-    longevity: str,
-    upgrade_open: bool,
+    resolution_target: str,
 ) -> dict[str, float]:
     """
-    Produces the exact 12-feature dict the RF model was trained on.
+    Produces the exact 11-feature dict the RF model was trained on.
 
     Features:
       budget_mid          — midpoint of budget range (raw PHP)
@@ -40,14 +55,18 @@ def build_feature_vector(
       performance_bias    — blend of budget level and spread; proxy for
                             how much the user is willing to pay for performance
       intent_*            — 6 hardware demand dimension weights from activity mapping
-      longevity_mult      — tier multiplier from longevity selection (0.8/1.0/1.2)
-      upgrade_open        — 1 if user wants upgrade path, 0 if complete build
+      longevity_mult      — tier multiplier from resolution selection (0.85–1.40)
     """
-    intent = compute_intent(primary, secondary)
+    intent = compute_intent(primary, secondary, resolution_target)
 
     budget_mid  = (budget_min + budget_max) / 2
     budget_norm = budget_mid / 200_000
     spread_norm = (budget_max - budget_min) / 200_000
+
+    res_weights = RESOLUTION_TARGET_WEIGHTS.get(
+        resolution_target,
+        RESOLUTION_TARGET_WEIGHTS["1080p 144Hz+ (FHD High FPS)"],
+    )
 
     return {
         "budget_mid":          budget_mid,
@@ -60,6 +79,5 @@ def build_feature_vector(
         "intent_vram":         intent["vram"],
         "intent_ram_cap":      intent["ram_cap"],
         "intent_storage_spd":  intent["storage_spd"],
-        "longevity_mult":      LONGEVITY_MULTIPLIER[longevity],
-        "upgrade_open":        int(upgrade_open),
+        "longevity_mult":      res_weights["tier_mult"],
     }

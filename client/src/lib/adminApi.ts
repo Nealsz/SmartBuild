@@ -150,3 +150,100 @@ export async function deleteComponent(
     method: "DELETE",
   });
 }
+
+// ── Store Tickets Types & API ──────────────────────────────────────────────────
+
+export interface StoreTicket {
+  id: string;
+  ticket_code: string;
+  total_price: number;
+  build_data: Record<string, unknown>;
+  status: "Pending" | "Reserved" | "Building" | "Completed" | "Cancelled" | "Expired";
+  is_stock_deducted: boolean;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  customer_email?: string | null;
+  created_at: string;
+  expires_at: string;
+  updated_at?: string;
+}
+
+export interface TicketPage {
+  data: StoreTicket[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  status_counts: Record<string, number>;
+}
+
+export async function createStoreTicket(payload: {
+  total_price: number;
+  build_data: Record<string, unknown>;
+  customer_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
+}): Promise<{
+  success: boolean;
+  ticket_code: string;
+  id: string;
+  total_price: number;
+  status: string;
+  expires_at: string;
+  valid_days: number;
+  message: string;
+}> {
+  return apiFetch(
+    "/tickets",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    false,
+  );
+}
+
+export async function getStoreTicketByCode(ticketCode: string): Promise<StoreTicket> {
+  return apiFetch(`/tickets/${encodeURIComponent(ticketCode)}`, {}, false);
+}
+
+export async function listAdminTickets(
+  params: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    q?: string;
+  } = {},
+): Promise<TicketPage> {
+  const qp = new URLSearchParams();
+  if (params.page) qp.set("page", String(params.page));
+  if (params.pageSize) qp.set("page_size", String(params.pageSize));
+  if (params.status && params.status !== "All") qp.set("status", params.status);
+  if (params.q) qp.set("q", params.q);
+  return apiFetch(`/admin/tickets?${qp.toString()}`);
+}
+
+export async function updateAdminTicketStatus(
+  ticketId: string,
+  status: string,
+): Promise<{
+  success: boolean;
+  id: string;
+  ticket_code: string;
+  status: string;
+  is_stock_deducted: boolean;
+  message: string;
+}> {
+  return apiFetch(`/admin/tickets/${ticketId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function deleteAdminTicket(
+  ticketId: string,
+): Promise<{ deleted: boolean; id: string; ticket_code: string }> {
+  return apiFetch(`/admin/tickets/${ticketId}`, {
+    method: "DELETE",
+  });
+}

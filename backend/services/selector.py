@@ -17,7 +17,7 @@ import pandas as pd
 from config import (
     BASE_ALLOC,
     GPU_TDP_MAP,
-    LONGEVITY_MULTIPLIER,
+    RESOLUTION_MULTIPLIER,
     PCIE5_CHIPSETS,
     TIER_BOUNDARIES,
 )
@@ -47,12 +47,55 @@ def _pick(df: pd.DataFrame, budget_ceil: float) -> pd.Series | None:
     """
     From a scored DataFrame, return the highest-scoring row within budget_ceil.
     Falls back to cheapest available if nothing fits the ceiling.
+    Prioritizes items with stock > 0.
     """
+    if "stock" in df.columns:
+        in_stock = df[pd.to_numeric(df["stock"], errors="coerce").fillna(0) > 0]
+        if not in_stock.empty:
+            df = in_stock
+
     within = df[df["price"] <= budget_ceil]
     if not within.empty:
         return within.sort_values("final_score", ascending=False).iloc[0]
     # Fallback: cheapest row regardless of tier
     return df.sort_values("price").iloc[0] if not df.empty else None
+
+
+def _pick_top3(df: pd.DataFrame, budget_ceil: float) -> tuple[pd.Series | None, list[pd.Series]]:
+    """
+    Return (main, [alt1, alt2]) from a scored DataFrame.
+    Main  = highest-scoring row within budget_ceil (falls back to cheapest).
+    Alts  = next 2 highest-scoring rows within budget_ceil that have different names.
+    Prioritizes items with stock > 0.
+    """
+    if df.empty:
+        return None, []
+
+    if "stock" in df.columns:
+        in_stock = df[pd.to_numeric(df["stock"], errors="coerce").fillna(0) > 0]
+        if not in_stock.empty:
+            df = in_stock
+
+    within = df[df["price"] <= budget_ceil].sort_values("final_score", ascending=False)
+    fallback = df.sort_values("price")
+
+    pool = within if not within.empty else fallback
+    if pool.empty:
+        return None, []
+
+    main = pool.iloc[0]
+    seen_names = {str(main.get("name", ""))}
+
+    alts: list[pd.Series] = []
+    for _, row in pool.iloc[1:].iterrows():
+        r_name = str(row.get("name", ""))
+        if r_name not in seen_names:
+            seen_names.add(r_name)
+            alts.append(row)
+        if len(alts) >= 2:
+            break
+
+    return main, alts
 
 
 # ── Per-component scorers ──────────────────────────────────────────────────────
@@ -249,36 +292,21 @@ def select_build(
     intent: dict[str, float],
     budget_min: int,
     budget_max: int,
-    longevity: str,
-    upgrade_open: bool,
+    resolution_target: str,
     is_calculating_min_budget: bool = False,
 ) -> dict:
     """
     Selects the best component for each category using RF tier predictions
     as price-band filters, then scores within that band.
-
-    Parameters
-    ----------
-    dfs          : loaded DataFrames keyed by component name
-    tiers        : RF-predicted tier per component e.g. {"cpu": "mid", "gpu": "high", ...}
-    intent       : blended hardware demand dimension weights from intent_classifier
-    budget_min   : user minimum budget (PHP)
-    budget_max   : user maximum budget (PHP)
-    longevity    : "1-2 years" | "3-5 years" | "5+ years"
-    upgrade_open : True if user wants upgrade path
-
-    Returns
-    -------
-    dict with keys: cpu, gpu, ram, storage, motherboard, psu, case, cpu_cooler,
-                    case_fan, psu_min_watt, psu_max_watt
+    Returns a dict where each component key maps to
+    {"main": pd.Series, "alternatives": [pd.Series, ...]}
+    (except psu_min_watt / psu_max_watt which remain scalars).
     """
-    tier_mult  = LONGEVITY_MULTIPLIER[longevity]
+    tier_mult = RESOLUTION_MULTIPLIER.get(
+        resolution_target,
+        RESOLUTION_MULTIPLIER["1080p 144Hz+ (FHD High FPS)"],
+    )
     alloc      = dict(BASE_ALLOC)
-
-    if upgrade_open:
-        alloc["gpu"]         -= 0.03
-        alloc["motherboard"] += 0.02
-        alloc["psu"]         += 0.01
 
     budget_mid = (budget_min + budget_max) / 2
     budgets    = {k: v * budget_mid for k, v in alloc.items()}
@@ -294,24 +322,26 @@ def select_build(
     if cpu_pool.empty:
         cpu_pool = valid_cpus.copy()                     # fallback: all valid CPUs
     cpu_scored = _score_cpu(cpu_pool, intent, tier_mult)
-    cpu_row    = _pick(cpu_scored, budgets["cpu"])
-    if cpu_row is None:
-        cpu_row = _score_cpu(valid_cpus, intent, tier_mult).sort_values("price").iloc[0]
+    cpu_main, cpu_alts = _pick_top3(cpu_scored, budgets["cpu"])
+    if cpu_main is None:
+        cpu_main = _score_cpu(valid_cpus, intent, tier_mult).sort_values("price").iloc[0]
+        cpu_alts = []
 
-    cpu_tdp  = float(cpu_row.get("tdp", 65))
-    cpu_sock = str(cpu_row.get("socket", ""))
+    cpu_tdp  = float(cpu_main.get("tdp", 65))
+    cpu_sock = str(cpu_main.get("socket", ""))
 
     # ── GPU ────────────────────────────────────────────────────────────────────
     lo, hi   = _tier_price_band("gpu", tiers.get("gpu", "mid"))
     gpu_pool = dfs["gpu"][(dfs["gpu"]["price"] >= lo) & (dfs["gpu"]["price"] < hi)].copy()
     if gpu_pool.empty:
         gpu_pool = dfs["gpu"].copy()
-    gpu_scored   = _score_gpu(gpu_pool, intent, tier_mult)
-    gpu_row      = _pick(gpu_scored, budgets["gpu"])
-    if gpu_row is None:
-        gpu_row = _score_gpu(dfs["gpu"], intent, tier_mult).sort_values("price").iloc[0]
+    gpu_scored          = _score_gpu(gpu_pool, intent, tier_mult)
+    gpu_main, gpu_alts  = _pick_top3(gpu_scored, budgets["gpu"])
+    if gpu_main is None:
+        gpu_main = _score_gpu(dfs["gpu"], intent, tier_mult).sort_values("price").iloc[0]
+        gpu_alts = []
 
-    gpu_chip     = str(gpu_row.get("chipset", ""))
+    gpu_chip     = str(gpu_main.get("chipset", ""))
     gpu_est_watt = next((tdp for k, tdp in GPU_TDP_MAP.items() if k in gpu_chip), 200)
 
     # ── RAM ────────────────────────────────────────────────────────────────────
@@ -319,12 +349,13 @@ def select_build(
     ram_pool = dfs["ram"][(dfs["ram"]["price"] >= lo) & (dfs["ram"]["price"] < hi)].copy()
     if ram_pool.empty:
         ram_pool = dfs["ram"].copy()
-    ram_scored = _score_ram(ram_pool, intent, tier_mult)
-    ram_row    = _pick(ram_scored, budgets["ram"])
-    if ram_row is None:
-        ram_row = _score_ram(dfs["ram"], intent, tier_mult).sort_values("price").iloc[0]
+    ram_scored          = _score_ram(ram_pool, intent, tier_mult)
+    ram_main, ram_alts  = _pick_top3(ram_scored, budgets["ram"])
+    if ram_main is None:
+        ram_main = _score_ram(dfs["ram"], intent, tier_mult).sort_values("price").iloc[0]
+        ram_alts = []
 
-    ram_ddr = str(ram_row.get("ddr_gen", "DDR4"))
+    ram_ddr = str(ram_main.get("ddr_gen", "DDR4"))
 
     # ── MOTHERBOARD ────────────────────────────────────────────────────────────
     # Motherboard is compatibility-filtered first, tier-filtered second
@@ -335,12 +366,13 @@ def select_build(
     mb_pool = mb_compat[(mb_compat["price"] >= lo) & (mb_compat["price"] < hi)].copy()
     if mb_pool.empty:
         mb_pool = mb_compat.copy()
-    mb_row  = _pick(mb_pool, budgets["motherboard"])
-    if mb_row is None:
-        mb_row = mb_compat.sort_values("price").iloc[0]
+    mb_main, mb_alts = _pick_top3(mb_pool, budgets["motherboard"])
+    if mb_main is None:
+        mb_main = mb_compat.sort_values("price").iloc[0]
+        mb_alts = []
 
-    mb_name    = str(mb_row.get("name", ""))
-    mobo_ff    = str(mb_row.get("form_factor", "ATX"))
+    mb_name    = str(mb_main.get("name", ""))
+    mobo_ff    = str(mb_main.get("form_factor", "ATX"))
     pcie5_ok   = any(c in mb_name for c in PCIE5_CHIPSETS)
 
     # ── STORAGE ────────────────────────────────────────────────────────────────
@@ -348,16 +380,18 @@ def select_build(
     stor_pool = dfs["storage"][(dfs["storage"]["price"] >= lo) & (dfs["storage"]["price"] < hi)].copy()
     if stor_pool.empty:
         stor_pool = dfs["storage"].copy()
-    stor_scored = _score_storage(stor_pool, intent, tier_mult, pcie5_ok=pcie5_ok)
-    stor_row    = _pick(stor_scored, budgets["storage"])
-    if stor_row is None:
-        stor_row = _score_storage(dfs["storage"], intent, tier_mult, pcie5_ok=pcie5_ok).sort_values("price").iloc[0]
+    stor_scored           = _score_storage(stor_pool, intent, tier_mult, pcie5_ok=pcie5_ok)
+    stor_main, stor_alts  = _pick_top3(stor_scored, budgets["storage"])
+    if stor_main is None:
+        stor_main = _score_storage(dfs["storage"], intent, tier_mult, pcie5_ok=pcie5_ok).sort_values("price").iloc[0]
+        stor_alts = []
 
     # ── PSU (constraint-driven — tier prediction is informational only) ────────
     psu_scored, min_watt, max_watt = _score_psu(dfs["psu"], cpu_tdp, gpu_est_watt)
-    psu_row = _pick(psu_scored, budgets["psu"])
-    if psu_row is None:
-        psu_row = psu_scored.sort_values("price").iloc[0] if not psu_scored.empty else None
+    psu_main, psu_alts = _pick_top3(psu_scored, budgets["psu"])
+    if psu_main is None and not psu_scored.empty:
+        psu_main = psu_scored.sort_values("price").iloc[0]
+        psu_alts = []
 
     # ── CASE ───────────────────────────────────────────────────────────────────
     case_compat = _score_case(dfs["case"], mobo_ff)
@@ -365,9 +399,10 @@ def select_build(
     case_pool   = case_compat[(case_compat["price"] >= lo) & (case_compat["price"] < hi)].copy()
     if case_pool.empty:
         case_pool = case_compat.copy()
-    case_row = _pick(case_pool, budgets["case"])
-    if case_row is None and not case_compat.empty:
-        case_row = case_compat.sort_values("price").iloc[0]
+    case_main, case_alts = _pick_top3(case_pool, budgets["case"])
+    if case_main is None and not case_compat.empty:
+        case_main = case_compat.sort_values("price").iloc[0]
+        case_alts = []
 
     # ── CPU COOLER ─────────────────────────────────────────────────────────────
     lo, hi      = _tier_price_band("cpu_cooler", tiers.get("cpu_cooler", "mid"))
@@ -376,38 +411,40 @@ def select_build(
     ].copy()
     if cooler_pool.empty:
         cooler_pool = dfs["cpu_cooler"].copy()
-    cool_scored = _score_cooler(cooler_pool, cpu_tdp)
-    cool_row    = _pick(cool_scored, budgets["cpu_cooler"])
-    if cool_row is None:
-        cool_row = _score_cooler(dfs["cpu_cooler"], cpu_tdp).sort_values("price").iloc[0]
+    cool_scored             = _score_cooler(cooler_pool, cpu_tdp)
+    cool_main, cool_alts    = _pick_top3(cool_scored, budgets["cpu_cooler"])
+    if cool_main is None:
+        cool_main = _score_cooler(dfs["cpu_cooler"], cpu_tdp).sort_values("price").iloc[0]
+        cool_alts = []
 
     # ── CASE FAN (from remaining budget — no tier, no hard compatibility) ──────
     spent = sum(
         float(r.get("price", 0))
-        for r in [cpu_row, gpu_row, ram_row, stor_row, mb_row, psu_row, case_row, cool_row]
+        for r in [cpu_main, gpu_main, ram_main, stor_main, mb_main, psu_main, case_main, cool_main]
         if r is not None
     )
-    fan_row = _select_case_fan(dfs["case_fan"], budget_max - spent)
+    fan_main = _select_case_fan(dfs["case_fan"], budget_max - spent)
 
     res_build = {
-        "cpu":          cpu_row,
-        "gpu":          gpu_row,
-        "ram":          ram_row,
-        "storage":      stor_row,
-        "motherboard":  mb_row,
-        "psu":          psu_row,
-        "case":         case_row,
-        "cpu_cooler":   cool_row,
-        "case_fan":     fan_row,
+        "cpu":          {"main": cpu_main,   "alternatives": cpu_alts},
+        "gpu":          {"main": gpu_main,   "alternatives": gpu_alts},
+        "ram":          {"main": ram_main,   "alternatives": ram_alts},
+        "storage":      {"main": stor_main,  "alternatives": stor_alts},
+        "motherboard":  {"main": mb_main,    "alternatives": mb_alts},
+        "psu":          {"main": psu_main,   "alternatives": psu_alts},
+        "case":         {"main": case_main,  "alternatives": case_alts},
+        "cpu_cooler":   {"main": cool_main,  "alternatives": cool_alts},
+        "case_fan":     {"main": fan_main,   "alternatives": []},
         "psu_min_watt": min_watt,
         "psu_max_watt": max_watt,
     }
 
     # ── Post-processing: Budget Fit Enforcement ────────────────────────────────
+    # Total is based on main picks only
     total_spent = sum(
-        float(r.get("price", 0))
-        for k, r in res_build.items()
-        if r is not None and k not in ("psu_min_watt", "psu_max_watt")
+        float(res_build[k]["main"].get("price", 0))
+        for k in res_build
+        if k not in ("psu_min_watt", "psu_max_watt") and res_build[k]["main"] is not None
     )
 
     if total_spent > budget_max and not is_calculating_min_budget:
@@ -422,9 +459,9 @@ def select_build(
                 name = cheapest_parts.get(cat, {}).get("name")
                 if name and cat in dfs:
                     row = dfs[cat][dfs[cat]["name"] == name]
-                    res_build_cheap[cat] = row.iloc[0] if not row.empty else None
+                    res_build_cheap[cat] = {"main": row.iloc[0] if not row.empty else None, "alternatives": []}
                 else:
-                    res_build_cheap[cat] = None
+                    res_build_cheap[cat] = {"main": None, "alternatives": []}
             res_build_cheap["psu_min_watt"] = min_watt
             res_build_cheap["psu_max_watt"] = max_watt
             return res_build_cheap
@@ -432,25 +469,30 @@ def select_build(
         # Trim components iteratively if budget_max is larger
         from .compatibility import check_compatibility, summarise
         for comp in ["gpu", "motherboard", "cpu", "ram", "storage", "case", "cpu_cooler", "psu"]:
-            curr = res_build.get(comp)
-            if curr is None:
+            curr_entry = res_build.get(comp)
+            if curr_entry is None or curr_entry["main"] is None:
                 continue
-            curr_price = float(curr.get("price", 0))
+            curr_price = float(curr_entry["main"].get("price", 0))
             df_comp = dfs[comp].copy()
             df_comp["price_num"] = pd.to_numeric(df_comp["price"], errors="coerce")
             cheaper_items = df_comp[df_comp["price_num"] < curr_price].sort_values("price_num")
 
             for _, item in cheaper_items.iterrows():
                 test_build = dict(res_build)
-                test_build[comp] = item
-                test_cand = {k: v for k, v in test_build.items() if k not in ("psu_min_watt", "psu_max_watt")}
+                test_build[comp] = {"main": item, "alternatives": []}
+                # Build a flat main-only view for compatibility check
+                test_cand = {
+                    k: v["main"]
+                    for k, v in test_build.items()
+                    if k not in ("psu_min_watt", "psu_max_watt") and isinstance(v, dict)
+                }
                 res = check_compatibility(test_cand, min_watt, max_watt)
                 if summarise(res)["failures"] == 0:
                     res_build = test_build
                     new_tot = sum(
-                        float(r.get("price", 0))
-                        for k, r in res_build.items()
-                        if r is not None and k not in ("psu_min_watt", "psu_max_watt")
+                        float(res_build[k]["main"].get("price", 0))
+                        for k in res_build
+                        if k not in ("psu_min_watt", "psu_max_watt") and res_build[k]["main"] is not None
                     )
                     if new_tot <= budget_max:
                         return res_build

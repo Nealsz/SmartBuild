@@ -7,7 +7,7 @@ const HIDDEN_FIELDS = new Set(["id", "created_at", "updated_at"]);
 
 // Fields that should use a number input
 const NUMERIC_KEYWORDS = [
-  "price", "wattage", "clock", "count", "memory", "capacity",
+  "price", "stock", "wattage", "clock", "count", "memory", "capacity",
   "speed", "tdp", "score", "latency", "size", "slots", "volume",
   "max", "min", "rating", "watts",
 ];
@@ -18,20 +18,21 @@ function isNumericField(key: string): boolean {
 }
 
 export const CATEGORY_NECESSARY_COLUMNS: Record<string, string[]> = {
-  cpu:         ["name", "price", "boost_clock", "core_count", "core_clock", "performance_score", "tdp", "socket"],
-  gpu:         ["name", "price", "memory", "core_clock", "boost_clock"],
-  ram:         ["name", "price", "speed_mhz", "total_capacity_gb", "first_word_latency", "ddr_gen"],
-  storage:     ["name", "price", "capacity"],
-  motherboard: ["name", "price", "max_memory", "memory_slots", "socket", "form_factor"],
-  psu:         ["name", "price", "wattage"],
-  case:        ["name", "price", "external_volume", "type"],
-  cpu_cooler:  ["name", "price", "size"],
-  case_fan:    ["name", "price", "size"],
+  cpu:         ["name", "price", "stock", "boost_clock", "core_count", "core_clock", "performance_score", "tdp", "socket"],
+  gpu:         ["name", "price", "stock", "memory", "core_clock", "boost_clock"],
+  ram:         ["name", "price", "stock", "speed_mhz", "total_capacity_gb", "first_word_latency", "ddr_gen"],
+  storage:     ["name", "price", "stock", "capacity"],
+  motherboard: ["name", "price", "stock", "max_memory", "memory_slots", "socket", "form_factor"],
+  psu:         ["name", "price", "stock", "wattage"],
+  case:        ["name", "price", "stock", "external_volume", "type"],
+  cpu_cooler:  ["name", "price", "stock", "size"],
+  case_fan:    ["name", "price", "stock", "size"],
 };
 
 export const COLUMN_LABELS: Record<string, string> = {
   name: "Name",
   price: "Price (₱)",
+  stock: "Stock",
   boost_clock: "Boost Clock (GHz)",
   core_clock: "Base Clock (GHz)",
   core_count: "Core Count",
@@ -144,14 +145,14 @@ export default function ComponentModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <h2 className="text-lg font-semibold text-white">
-            {mode === "create" ? "➕ Add Component" : "✏️ Edit Component"}
+            {mode === "create" ? "Add Component" : "Edit Component"}
           </h2>
           <button
             id="modal-close-btn"
             onClick={onClose}
             className="text-slate-400 transition hover:text-white"
           >
-            ✕
+            &times;
           </button>
         </div>
 

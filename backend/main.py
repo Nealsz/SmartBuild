@@ -2,16 +2,17 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from schemas.user_input import UserInput
-from config import ACTIVITY_WEIGHTS, LONGEVITY_MULTIPLIER
+from config import ACTIVITY_WEIGHTS, RESOLUTION_TARGET_WEIGHTS
 from services.recommender import (
     generate_build as recommender_generate_build,
     get_cheapest_compatible_build,
 )
 from routers.admin import router as admin_router
+from routers.tickets import router as tickets_router, cleanup_expired_tickets
 from services.admin_seeder import run_seeder
 
 VALID_ACTIVITIES = list(ACTIVITY_WEIGHTS.keys())
-VALID_LONGEVITY = list(LONGEVITY_MULTIPLIER.keys())
+VALID_RESOLUTION_TARGETS = list(RESOLUTION_TARGET_WEIGHTS.keys())
 
 app = FastAPI(
     title="SmartBuild API",
@@ -34,16 +35,25 @@ app.add_middleware(
 )
 
 app.include_router(admin_router)
+app.include_router(tickets_router)
 
 
 @app.on_event("startup")
 def startup_event():
-    """Pre-warm dataset, ML models, and minimum compatible build cache on boot."""
+    """Pre-warm dataset, ML models, and clean up expired tickets on boot."""
     # Seed default admin account if none exists
     try:
         run_seeder()
     except Exception as e:
         print(f"[Warning] Admin seeder failed: {e}")
+
+    # Clean up any store tickets past 30 days
+    try:
+        cleaned = cleanup_expired_tickets()
+        if cleaned > 0:
+            print(f"[Tickets] Cleaned up {cleaned} expired tickets on startup.")
+    except Exception as e:
+        print(f"[Warning] Ticket cleanup failed on startup: {e}")
 
     # Pre-warm recommendation pipeline
     try:
@@ -63,10 +73,10 @@ def get_activities():
     return {"activities": VALID_ACTIVITIES}
 
 
-@app.get("/longevity-options")
-def get_longevity_options():
-    """Return the list of valid longevity options."""
-    return {"longevity_options": VALID_LONGEVITY}
+@app.get("/resolution-options")
+def get_resolution_options():
+    """Return the list of valid resolution & refresh rate target options."""
+    return {"resolution_options": VALID_RESOLUTION_TARGETS}
 
 
 @app.get("/min-compatible-budget")
@@ -88,8 +98,7 @@ def generate_build(user: UserInput):
             budget_max=user.max_budget,
             primary_activity=user.primary_activity,
             secondary_activity=user.secondary_activity,
-            longevity=user.longevity,
-            upgrade_open=user.upgrade_open,
+            resolution_target=user.resolution_target,
         )
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e))

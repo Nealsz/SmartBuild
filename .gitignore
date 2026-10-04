@@ -13,6 +13,7 @@ env/
 
 # Data
 data/
+backend/data/
 *.csv
 *.sqlite3
 
@@ -35,3 +36,8 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Non-runtime categorized folders (offline tools, evaluations, training)
+evaluations/
+data_tools/
+model_training/

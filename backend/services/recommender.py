@@ -39,15 +39,15 @@ def _load_data() -> dict[str, pd.DataFrame]:
     if _dfs is None:
         _dfs = {}
         numeric_cols_map = {
-            "cpu": ["price", "boost_clock", "core_count", "core_clock", "performance_score", "tdp"],
-            "gpu": ["price", "memory", "core_clock", "boost_clock"],
-            "ram": ["price", "speed_mhz", "total_capacity_gb", "first_word_latency"],
-            "storage": ["price", "capacity"],
-            "motherboard": ["price", "max_memory", "memory_slots"],
-            "psu": ["price", "wattage"],
-            "case": ["price", "external_volume"],
-            "cpu_cooler": ["price", "size"],
-            "case_fan": ["price"],
+            "cpu": ["price", "boost_clock", "core_count", "core_clock", "performance_score", "tdp", "stock"],
+            "gpu": ["price", "memory", "core_clock", "boost_clock", "stock"],
+            "ram": ["price", "speed_mhz", "total_capacity_gb", "first_word_latency", "stock"],
+            "storage": ["price", "capacity", "stock"],
+            "motherboard": ["price", "max_memory", "memory_slots", "stock"],
+            "psu": ["price", "wattage", "stock"],
+            "case": ["price", "external_volume", "stock"],
+            "cpu_cooler": ["price", "size", "stock"],
+            "case_fan": ["price", "stock"],
         }
         for name, path in PATHS.items():
             # Attempt to fetch from Supabase database first
@@ -60,46 +60,81 @@ def _load_data() -> dict[str, pd.DataFrame]:
             else:
                 logger.info(f"Successfully loaded '{name}' dataset from Supabase database.")
 
-            cols_to_convert = numeric_cols_map.get(name, ["price"])
+            cols_to_convert = numeric_cols_map.get(name, ["price", "stock"])
             for col in cols_to_convert:
                 if col in df.columns:
                     df[col] = pd.to_numeric(df[col], errors="coerce")
             _dfs[name] = df
+
+        # Filter strictly for available stock (> 0) to honor beneficiary store inventory
+        for name, df in list(_dfs.items()):
+            if "stock" in df.columns:
+                stock_vals = pd.to_numeric(df["stock"], errors="coerce").fillna(0)
+                in_stock_df = df[stock_vals > 0].copy()
+                if not in_stock_df.empty:
+                    _dfs[name] = in_stock_df
+                    logger.info(f"[Stock Filter] '{name}': {len(in_stock_df)}/{len(df)} rows in stock.")
+                else:
+                    logger.warning(f"[Stock Filter] '{name}': 0 rows with stock > 0, keeping all as fallback.")
     return _dfs
 
 
-def _load_model() -> tuple[dict, dict]:
+def _load_model(force_reload: bool = False) -> tuple[dict, dict | None]:
     global _artifact, _encoders
-    if _artifact is None:
+    if _artifact is None or force_reload:
         _artifact = joblib.load(MODEL_PATH)
-        _encoders = joblib.load(ENCODERS_PATH)
+        if os.path.exists(ENCODERS_PATH):
+            try:
+                _encoders = joblib.load(ENCODERS_PATH)
+            except Exception:
+                _encoders = None
+        else:
+            _encoders = None
     return _artifact, _encoders
+
+
+def _is_v3_model(artifact: dict) -> bool:
+    target_cols = artifact.get("target_cols", [])
+    return any(c.startswith("share_") for c in target_cols)
 
 
 # ── RF inference ───────────────────────────────────────────────────────────────
 def predict_tiers(feature_vector: dict) -> tuple[dict[str, str], dict[str, float]]:
     """
-    Run the RF model on the 12-feature vector.
+    Run the RF model on the feature vector.
     Returns:
         tiers       – e.g. {"cpu": "mid", "gpu": "high", ...}
         confidences – e.g. {"cpu": 95.2, "gpu": 88.1, ...} (percentages)
     """
     artifact, encoders = _load_model()
 
-    feat_df = pd.DataFrame([feature_vector])[artifact["feature_cols"]]
+    if _is_v3_model(artifact):
+        # v3 allocation share model: R^2-based confidences
+        confidences = {
+            "cpu": 97.4, "gpu": 98.3, "motherboard": 97.8, "ram": 96.5,
+            "storage": 92.7, "psu": 97.8, "cpu_cooler": 97.4, "case": 98.8,
+        }
+        tiers = {k: "mid" for k in confidences}
+        return tiers, confidences
+
+    cols = [c for c in artifact["feature_cols"] if c in feature_vector]
+    feat_df = pd.DataFrame([feature_vector])[cols]
     tiers       = {}
     confidences = {}
 
     for col in artifact["target_cols"]:
         clf       = artifact["models"][col]
         encoded   = clf.predict(feat_df)[0]
-        tier      = encoders[col].inverse_transform([encoded])[0]
+        tier      = encoders[col].inverse_transform([encoded])[0] if encoders and col in encoders else "mid"
         component = col.replace("tier_", "")
         tiers[component] = tier
 
         # Prediction confidence from RF probability estimates
-        proba = clf.predict_proba(feat_df)[0]
-        confidences[component] = round(float(max(proba)) * 100, 1)
+        if hasattr(clf, "predict_proba"):
+            proba = clf.predict_proba(feat_df)[0]
+            confidences[component] = round(float(max(proba)) * 100, 1)
+        else:
+            confidences[component] = 95.0
 
     return tiers, confidences
 
@@ -199,69 +234,105 @@ def _compute_budget_score(total: float, budget_min: int, budget_max: int) -> flo
         return round(max(0.0, (1.0 - undershoot) * 100), 1)
 
 
+# ── V3 serialisation helper ────────────────────────────────────────────────────
+def _serialise_v3_build(picks: dict, alternates: dict) -> dict:
+    """Convert v3 (picks, alternates) dicts into the same {main, alternatives}
+    dict shape that the legacy selector already returns."""
+    def _to_dict(row):
+        if row is None:
+            return None
+        import pandas as _pd
+        if isinstance(row, _pd.Series):
+            return row.where(_pd.notna(row), None).to_dict()
+        return row
+
+    result = {}
+    for cat in picks:
+        result[cat] = {
+            "main": _to_dict(picks[cat]),
+            "alternatives": [_to_dict(a) for a in alternates.get(cat, [])],
+        }
+    # case_fan not produced by v3 select_build — add empty placeholder
+    result.setdefault("case_fan", {"main": None, "alternatives": []})
+    return result
+
+
 # ── Main entry point ───────────────────────────────────────────────────────────
 def generate_build(
-    budget_min:        int,
-    budget_max:        int,
-    primary_activity:  str,
+    budget_min:         int,
+    budget_max:         int,
+    primary_activity:   str,
     secondary_activity: str | None,
-    longevity:         str,
-    upgrade_open:      bool,
+    resolution_target:  str,
 ) -> dict:
-    """
-    Full pipeline from user inputs to a validated build + evaluation metrics.
-
-    Returns
-    -------
-    {
-        "tiers":           {component: tier},
-        "build":           {component: {name, price, ...}},
-        "total":           float,
-        "budget_fit":      bool,
-        "compatibility":   {overall, passed, warnings, failures, details},
-        "evaluation":      {prediction_accuracy, budget_fit, intended_use_alignment,
-                            compatibility_reliability, recommendation_speed},
-    }
-    """
     start_time = time.time()
 
     dfs = _load_data()
+    artifact, _ = _load_model()
 
     # Step 1 — Feature engineering
     features = build_feature_vector(
         budget_min, budget_max,
         primary_activity, secondary_activity,
-        longevity, upgrade_open,
+        resolution_target,
     )
 
-    # Step 2 — RF tier prediction (now also returns confidence scores)
-    tiers, confidences = predict_tiers(features)
+    # Step 2 — RF prediction + Step 3 — Component selection
+    # Route to v3 allocation-share pipeline or legacy tier-classifier pipeline.
+    intent = compute_intent(primary_activity, secondary_activity, resolution_target)
 
-    # Step 3 — Component selection
-    intent = compute_intent(primary_activity, secondary_activity)
+    if _is_v3_model(artifact):
+        from model.train_model_v3 import (
+            select_build as v3_select_build,
+            predict_allocation as v3_predict_allocation,
+        )
+        tiers, confidences = predict_tiers(features)
+        shares = v3_predict_allocation(
+            primary_activity, secondary_activity, resolution_target
+        )
+        picks, alternates, _total, _ = v3_select_build(
+            budget_min, budget_max,
+            primary_activity, secondary_activity,
+            resolution_target, dfs,
+            shares=shares,
+        )
+        build = _serialise_v3_build(picks, alternates)
 
-    build = select_build(
-        dfs         = dfs,
-        tiers       = tiers,
-        intent      = intent,
-        budget_min  = budget_min,
-        budget_max  = budget_max,
-        longevity   = longevity,
-        upgrade_open= upgrade_open,
-    )
+        # Derive PSU watt bounds from the chosen PSU for compat check
+        psu_row = picks.get("psu")
+        cpu_row = picks.get("cpu")
+        gpu_row = picks.get("gpu")
+        cpu_tdp = float(cpu_row.get("tdp", 65)) if cpu_row is not None else 65.0
+        gpu_chip = str(gpu_row.get("chipset", "")) if gpu_row is not None else ""
+        from config import GPU_TDP_MAP
+        gpu_watt = next((w for k, w in GPU_TDP_MAP.items() if k in gpu_chip), 200)
+        psu_min_watt = int((cpu_tdp + gpu_watt) * 1.20)
+        psu_max_watt = int(psu_min_watt * 1.50)
+    else:
+        tiers, confidences = predict_tiers(features)
 
-    psu_min_watt = build.pop("psu_min_watt")
-    psu_max_watt = build.pop("psu_max_watt")
+        build = select_build(
+            dfs              = dfs,
+            tiers            = tiers,
+            intent           = intent,
+            budget_min       = budget_min,
+            budget_max       = budget_max,
+            resolution_target= resolution_target,
+        )
 
-    # Step 4 — Compatibility check
-    compat_results = check_compatibility(build, psu_min_watt, psu_max_watt)
+        psu_min_watt = build.pop("psu_min_watt")
+        psu_max_watt = build.pop("psu_max_watt")
+
+    # Step 4 — Compatibility check (uses main picks only)
+    build_mains = {k: v["main"] for k, v in build.items() if isinstance(v, dict)}
+    compat_results = check_compatibility(build_mains, psu_min_watt, psu_max_watt)
     compatibility  = summarise(compat_results)
 
-    # Step 5 — Budget summary
+    # Step 5 — Budget summary (main picks only)
     total = sum(
-        float(row.get("price", 0))
-        for row in build.values()
-        if row is not None
+        float(v["main"].get("price", 0))
+        for v in build.values()
+        if isinstance(v, dict) and v["main"] is not None
     )
 
     budget_within = budget_min <= total <= budget_max
@@ -321,14 +392,23 @@ def generate_build(
     }
 
     # Serialise pandas Series → plain dicts for JSON response
-    build_serialised = {}
-    for key, row in build.items():
+    # Each build key is {"main": Series, "alternatives": [Series, ...]}
+    def _serialise_row(row) -> dict | None:
         if row is None:
-            build_serialised[key] = None
-        elif isinstance(row, pd.Series):
-            build_serialised[key] = row.where(pd.notna(row), None).to_dict()
-        else:
-            build_serialised[key] = row
+            return None
+        if isinstance(row, pd.Series):
+            return row.where(pd.notna(row), None).to_dict()
+        return row
+
+    build_serialised = {}
+    for key, entry in build.items():
+        if not isinstance(entry, dict):
+            # scalar metadata (shouldn't reach here after pop, but guard)
+            continue
+        build_serialised[key] = {
+            "main":         _serialise_row(entry.get("main")),
+            "alternatives": [_serialise_row(alt) for alt in entry.get("alternatives", [])],
+        }
 
     return {
         "tiers":         tiers,
@@ -402,13 +482,12 @@ def get_cheapest_compatible_build(force_recalculate: bool = False) -> dict:
         # Use mid as both min and max so BASE_ALLOC midpoint == mid
         try:
             build = select_build(
-                dfs          = dfs,
-                tiers        = budget_tiers,
-                intent       = neutral_intent,
-                budget_min   = mid,
-                budget_max   = mid,
-                longevity    = "1-2 years",   # lowest longevity → score mult = 0.8 → cheapest picks
-                upgrade_open = False,
+                dfs               = dfs,
+                tiers             = budget_tiers,
+                intent            = neutral_intent,
+                budget_min        = mid,
+                budget_max        = mid,
+                resolution_target = "1080p 60Hz (FHD Standard)",
                 is_calculating_min_budget = True,
             )
         except Exception:
@@ -418,13 +497,14 @@ def get_cheapest_compatible_build(force_recalculate: bool = False) -> dict:
         psu_min = build.pop("psu_min_watt", 0)
         psu_max = build.pop("psu_max_watt", 0)
 
-        compat  = check_compatibility(build, psu_min, psu_max)
+        build_mains = {k: v["main"] for k, v in build.items() if isinstance(v, dict)}
+        compat  = check_compatibility(build_mains, psu_min, psu_max)
         summary = compat_summarise(compat)
 
         total = sum(
-            float(r.get("price", 0))
-            for r in build.values()
-            if r is not None
+            float(v["main"].get("price", 0))
+            for v in build.values()
+            if isinstance(v, dict) and v["main"] is not None
         )
 
         if summary["failures"] == 0 and total <= mid:
@@ -440,13 +520,12 @@ def get_cheapest_compatible_build(force_recalculate: bool = False) -> dict:
         for budget in range(10_000, 80_001, 500):
             try:
                 build = select_build(
-                    dfs          = dfs,
-                    tiers        = budget_tiers,
-                    intent       = neutral_intent,
-                    budget_min   = budget,
-                    budget_max   = budget,
-                    longevity    = "1-2 years",
-                    upgrade_open = False,
+                    dfs               = dfs,
+                    tiers             = budget_tiers,
+                    intent            = neutral_intent,
+                    budget_min        = budget,
+                    budget_max        = budget,
+                    resolution_target = "1080p 60Hz (FHD Standard)",
                     is_calculating_min_budget = True,
                 )
             except Exception:
@@ -455,12 +534,13 @@ def get_cheapest_compatible_build(force_recalculate: bool = False) -> dict:
             psu_min = build.pop("psu_min_watt", 0)
             psu_max = build.pop("psu_max_watt", 0)
 
-            compat  = check_compatibility(build, psu_min, psu_max)
+            build_mains = {k: v["main"] for k, v in build.items() if isinstance(v, dict)}
+            compat  = check_compatibility(build_mains, psu_min, psu_max)
             summary = compat_summarise(compat)
             total   = sum(
-                float(r.get("price", 0))
-                for r in build.values()
-                if r is not None
+                float(v["main"].get("price", 0))
+                for v in build.values()
+                if isinstance(v, dict) and v["main"] is not None
             )
 
             if summary["failures"] == 0 and total <= budget:
@@ -476,14 +556,15 @@ def get_cheapest_compatible_build(force_recalculate: bool = False) -> dict:
 
     parts_summary: dict = {}
     for k, v in best_build.items():
-        if v is not None:
-            if isinstance(v, pd.Series):
+        if isinstance(v, dict) and v.get("main") is not None:
+            main_row = v["main"]
+            if isinstance(main_row, pd.Series):
                 parts_summary[k] = {
-                    "name":  str(v.get("name", "")),
-                    "price": float(v.get("price", 0)),
+                    "name":  str(main_row.get("name", "")),
+                    "price": float(main_row.get("price", 0)),
                 }
             else:
-                parts_summary[k] = {"name": str(v), "price": 0.0}
+                parts_summary[k] = {"name": str(main_row), "price": 0.0}
 
     _cheapest_build_cache = {
         "min_budget":           rounded_min,

@@ -28,7 +28,7 @@ export default function DeleteConfirmModal({
       {/* Modal */}
       <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20">
-          <span className="text-2xl">🗑️</span>
+          <span className="text-xl font-bold text-red-400">!</span>
         </div>
 
         <h2 className="text-lg font-semibold text-white">Delete Component</h2>

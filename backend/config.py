@@ -14,7 +14,7 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # ── Supabase Database Config ───────────────────────────────────────────────────
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "").strip()
+SUPABASE_KEY = os.getenv("SUPABASE_SECRET_KEY", os.getenv("SUPABASE_KEY", "")).strip()
 
 # ── CSV data paths ─────────────────────────────────────────────────────────────
 DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "data")
@@ -75,11 +75,43 @@ BASE_ALLOC: dict[str, float] = {
     "case":        0.02,
 }
 
-# ── Longevity tier multiplier (applied to scoring, not budget) ─────────────────
-LONGEVITY_MULTIPLIER: dict[str, float] = {
-    "1-2 years": 0.80,
-    "3-5 years": 1.00,
-    "5+ years":  1.20,
+# ── Resolution & Refresh Rate Target Configuration ────────────────────────────
+# Weights apply to intent dimensions (gpu_compute, vram, cpu_single) and overall tier scaling
+RESOLUTION_TARGET_WEIGHTS: dict[str, dict[str, float]] = {
+    "1080p 60Hz (FHD Standard)": {
+        "tier_mult":        0.85,
+        "vram_mult":        0.85,
+        "gpu_compute_mult": 0.85,
+        "cpu_single_mult":  1.00,
+    },
+    "1080p 144Hz+ (FHD High FPS)": {
+        "tier_mult":        1.00,
+        "vram_mult":        0.95,
+        "gpu_compute_mult": 1.00,
+        "cpu_single_mult":  1.15,
+    },
+    "1440p 60-144Hz (QHD Standard)": {
+        "tier_mult":        1.15,
+        "vram_mult":        1.20,
+        "gpu_compute_mult": 1.20,
+        "cpu_single_mult":  1.05,
+    },
+    "1440p 165Hz+ (QHD High FPS)": {
+        "tier_mult":        1.25,
+        "vram_mult":        1.30,
+        "gpu_compute_mult": 1.30,
+        "cpu_single_mult":  1.15,
+    },
+    "4K 60Hz+ (UHD Ultra)": {
+        "tier_mult":        1.40,
+        "vram_mult":        1.50,
+        "gpu_compute_mult": 1.50,
+        "cpu_single_mult":  1.00,
+    },
+}
+
+RESOLUTION_MULTIPLIER: dict[str, float] = {
+    k: v["tier_mult"] for k, v in RESOLUTION_TARGET_WEIGHTS.items()
 }
 
 # ── GPU TDP estimates by chipset keyword ───────────────────────────────────────

@@ -177,10 +177,9 @@ export default function Home() {
             <div className="mt-6 grid gap-4 text-sm text-white/75">
               {[
                 "1. Your budget — how much you want to spend (min and max).",
-                "2. Main use — what you'll mostly do (gaming, editing, office work, etc.).",
-                "3. Second use (optional) — anything else you'll do often.",
-                "4. How long you want it to last — 1–2, 3–5, or 5+ years.",
-                "5. Future upgrades — do you want the option to add better parts later?",
+                "2. Primary use — what you'll mostly do (gaming, editing, office work, etc.).",
+                "3. Secondary use (optional) — anything else you'll do often.",
+                "4. Target display — your monitor's resolution & refresh rate.",
               ].map((step) => (
                 <div
                   key={step}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
+import StoreTicketModal from "./StoreTicketModal";
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 type CompatDetail = {
@@ -46,9 +47,14 @@ type Evaluation = {
   recommendation_speed: EvalMetric;
 };
 
+type ComponentGroup = {
+  main: ComponentData | null;
+  alternatives?: ComponentData[];
+};
+
 type BuildResult = {
   tiers: Record<string, string>;
-  build: Record<string, ComponentData | null>;
+  build: Record<string, ComponentGroup | ComponentData | null>;
   total: number;
   budget_fit: boolean;
   compatibility: Compatibility;
@@ -60,8 +66,7 @@ type UserInputSummary = {
   max_budget: number;
   primary_activity: string;
   secondary_activity: string | null;
-  longevity: string;
-  upgrade_open: boolean;
+  resolution_target: string;
 };
 
 /* ── Helpers ───────────────────────────────────────────────────────────────── */
@@ -73,16 +78,16 @@ const currencyFormatter = new Intl.NumberFormat("en-PH", {
 
 const fmt = (v: number) => currencyFormatter.format(v);
 
-const COMPONENT_LABELS: Record<string, { label: string; icon: string }> = {
-  cpu:         { label: "CPU (Processor)",        icon: "⚡" },
-  gpu:         { label: "GPU (Graphics Card)",    icon: "🎮" },
-  motherboard: { label: "Motherboard",            icon: "🔌" },
-  ram:         { label: "RAM (Memory)",           icon: "💾" },
-  storage:     { label: "Storage (SSD/HDD)",      icon: "💿" },
-  psu:         { label: "Power Supply (PSU)",     icon: "🔋" },
-  case:        { label: "Case",                   icon: "🖥️" },
-  cpu_cooler:  { label: "CPU Cooler",             icon: "❄️" },
-  case_fan:    { label: "Case Fans",              icon: "🌀" },
+const COMPONENT_LABELS: Record<string, { label: string }> = {
+  cpu:         { label: "CPU (Processor)" },
+  gpu:         { label: "GPU (Graphics Card)" },
+  motherboard: { label: "Motherboard" },
+  ram:         { label: "RAM (Memory)" },
+  storage:     { label: "Storage (SSD/HDD)" },
+  psu:         { label: "Power Supply (PSU)" },
+  case:        { label: "Case" },
+  cpu_cooler:  { label: "CPU Cooler" },
+  case_fan:    { label: "Case Fans" },
 };
 
 const STATUS_COLORS: Record<string, { border: string; bg: string; text: string; dot: string }> = {
@@ -98,11 +103,216 @@ const TIER_COLORS: Record<string, string> = {
   enthusiast: "border-purple-400/30 bg-purple-400/10 text-purple-200",
 };
 
+const PCIE5_CHIPSETS = ["Z790", "Z890", "X870", "X670", "TRX"];
+
+function runCompatibilityCheck(
+  buildMains: Record<string, ComponentData | null>
+): Compatibility {
+  const details: CompatDetail[] = [];
+
+  const cpu = buildMains.cpu;
+  const ram = buildMains.ram;
+  const stor = buildMains.storage;
+  const mb = buildMains.motherboard;
+  const psu = buildMains.psu;
+  const caseComp = buildMains.case;
+  const cool = buildMains.cpu_cooler;
+
+  // 1. CPU ↔ Motherboard Socket
+  if (cpu && mb) {
+    const cpuSocket = String(cpu.socket ?? "");
+    const mbSocket = String(mb.socket ?? "");
+    if (cpuSocket && mbSocket && cpuSocket === mbSocket) {
+      details.push({
+        status: "PASS",
+        rule: "CPU ↔ Motherboard Socket",
+        detail: `${cpuSocket} matches`,
+      });
+    } else if (cpuSocket && mbSocket) {
+      details.push({
+        status: "FAIL",
+        rule: "CPU ↔ Motherboard Socket",
+        detail: `CPU needs ${cpuSocket}, motherboard has ${mbSocket}`,
+      });
+    }
+  }
+
+  // 2. RAM DDR Gen ↔ Motherboard
+  if (ram && mb) {
+    const ddr = String(ram.ddr_gen ?? "");
+    const mbName = String(mb.name ?? "");
+    if (ddr === "DDR5" && mbName.includes("DDR4")) {
+      details.push({
+        status: "FAIL",
+        rule: "RAM ↔ Motherboard DDR Gen",
+        detail: "RAM is DDR5 but motherboard only supports DDR4",
+      });
+    } else if (ddr === "DDR4" && mbName.includes("DDR5")) {
+      details.push({
+        status: "FAIL",
+        rule: "RAM ↔ Motherboard DDR Gen",
+        detail: "RAM is DDR4 but motherboard only supports DDR5",
+      });
+    } else if (ddr) {
+      details.push({
+        status: "PASS",
+        rule: "RAM ↔ Motherboard DDR Gen",
+        detail: `${ddr} compatible with selected motherboard`,
+      });
+    }
+  }
+
+  // 3. RAM Capacity ≤ Motherboard Max Memory
+  if (ram && mb) {
+    const totalCap = Number(ram.total_capacity_gb ?? 0);
+    const maxMem = Number(mb.max_memory ?? 0);
+    if (totalCap > 0 && maxMem > 0) {
+      if (totalCap <= maxMem) {
+        details.push({
+          status: "PASS",
+          rule: "RAM Capacity ≤ Motherboard Max Memory",
+          detail: `${totalCap}GB ≤ ${maxMem}GB`,
+        });
+      } else {
+        details.push({
+          status: "FAIL",
+          rule: "RAM Capacity ≤ Motherboard Max Memory",
+          detail: `${totalCap}GB exceeds motherboard max of ${maxMem}GB`,
+        });
+      }
+    }
+  }
+
+  // 4. Motherboard Form Factor ↔ Case
+  if (mb && caseComp) {
+    const formCompat: Record<string, string[]> = {
+      ATX: ["ATX Mid Tower", "ATX Full Tower", "ATX Desktop", "ATX Test Bench"],
+      "Micro ATX": [
+        "MicroATX Mini Tower",
+        "MicroATX Mid Tower",
+        "MicroATX Desktop",
+        "ATX Mid Tower",
+        "ATX Full Tower",
+      ],
+      "Mini ITX": [
+        "Mini ITX Tower",
+        "Mini ITX Desktop",
+        "MicroATX Mini Tower",
+        "ATX Mid Tower",
+        "ATX Full Tower",
+      ],
+      EATX: ["ATX Full Tower", "XL ATX"],
+    };
+    const moboFf = String(mb.form_factor ?? "");
+    const caseType = String(caseComp.type ?? "");
+    const allowed = formCompat[moboFf] ?? [];
+    if (allowed.includes(caseType)) {
+      details.push({
+        status: "PASS",
+        rule: "Motherboard Form Factor ↔ Case",
+        detail: `${moboFf} fits in ${caseType}`,
+      });
+    } else if (moboFf && caseType) {
+      details.push({
+        status: "FAIL",
+        rule: "Motherboard Form Factor ↔ Case",
+        detail: `${moboFf} does not fit in ${caseType}`,
+      });
+    }
+  }
+
+  // 5. PSU Wattage
+  if (psu && cpu) {
+    const psuWatt = Number(psu.wattage ?? 0);
+    const cpuTdp = Number(cpu.tdp ?? 65);
+    const minWatt = Math.round((cpuTdp + 200) * 1.2);
+    if (psuWatt > 0) {
+      if (psuWatt >= minWatt) {
+        details.push({
+          status: "PASS",
+          rule: "PSU Wattage ≥ System TDP + 20% Headroom",
+          detail: `${psuWatt}W ≥ ${minWatt}W required`,
+        });
+      } else {
+        details.push({
+          status: "FAIL",
+          rule: "PSU Wattage ≥ System TDP + 20% Headroom",
+          detail: `${psuWatt}W insufficient — need at least ${minWatt}W`,
+        });
+      }
+    }
+  }
+
+  // 6. Storage PCIe 5.0 ↔ Motherboard
+  if (stor && mb) {
+    const interfaceStr = String(stor.interface ?? "");
+    const mbName = String(mb.name ?? "");
+    if (interfaceStr.includes("PCIe 5.0")) {
+      if (PCIE5_CHIPSETS.some((c) => mbName.includes(c))) {
+        details.push({
+          status: "PASS",
+          rule: "Storage PCIe 5.0 ↔ Motherboard",
+          detail: "Motherboard chipset supports PCIe 5.0 M.2",
+        });
+      } else {
+        details.push({
+          status: "WARN",
+          rule: "Storage PCIe 5.0 ↔ Motherboard",
+          detail:
+            "Could not confirm PCIe 5.0 M.2 support — verify motherboard spec sheet",
+        });
+      }
+    } else if (interfaceStr) {
+      details.push({
+        status: "PASS",
+        rule: "Storage Interface ↔ Motherboard",
+        detail: `${interfaceStr} is widely supported`,
+      });
+    }
+  }
+
+  // 7. CPU Cooler Adequacy
+  if (cool && cpu) {
+    const cpuTdp = Number(cpu.tdp ?? 65);
+    const coolSize = Number(cool.size ?? 0);
+    const isAio = coolSize > 0;
+    if (cpuTdp >= 125 && !isAio) {
+      details.push({
+        status: "WARN",
+        rule: "CPU Cooler ↔ CPU TDP",
+        detail: `CPU TDP is ${cpuTdp}W — an AIO liquid cooler is recommended`,
+      });
+    } else {
+      const coolLabel = isAio ? `AIO ${coolSize}mm` : "Air cooler";
+      details.push({
+        status: "PASS",
+        rule: "CPU Cooler ↔ CPU TDP",
+        detail: `${coolLabel} adequate for ${cpuTdp}W TDP`,
+      });
+    }
+  }
+
+  const failures = details.filter((d) => d.status === "FAIL").length;
+  const warnings = details.filter((d) => d.status === "WARN").length;
+  const passed = details.length - failures - warnings;
+
+  const overall = failures > 0 ? "FAIL" : warnings > 0 ? "WARN" : "PASS";
+
+  return {
+    overall,
+    passed,
+    warnings,
+    failures,
+    details,
+  };
+}
+
 /* ── Page Component ────────────────────────────────────────────────────────── */
 export default function BuildResultPage() {
   const [result, setResult] = useState<BuildResult | null>(null);
   const [input, setInput] = useState<UserInputSummary | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [ticketModalOpen, setTicketModalOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const handleDownloadPdf = useCallback(async () => {
@@ -187,6 +397,116 @@ export default function BuildResultPage() {
     if (rawInput) setInput(JSON.parse(rawInput));
   }, []);
 
+  const handleSwitchComponent = (categoryKey: string, altIndex: number) => {
+    if (!result) return;
+
+    const currentCategory = result.build[categoryKey];
+    if (
+      !currentCategory ||
+      typeof currentCategory !== "object" ||
+      !("main" in currentCategory)
+    ) {
+      return;
+    }
+
+    const group = currentCategory as ComponentGroup;
+    if (!group.main || !group.alternatives || !group.alternatives[altIndex]) return;
+
+    const oldMain = group.main;
+    const newMain = group.alternatives[altIndex];
+
+    const newAlternatives = [...group.alternatives];
+    newAlternatives[altIndex] = oldMain;
+
+    const updatedBuild = {
+      ...result.build,
+      [categoryKey]: {
+        main: newMain,
+        alternatives: newAlternatives,
+      },
+    };
+
+    const newTotal = Object.values(updatedBuild).reduce((sum, item) => {
+      if (!item) return sum;
+      const m =
+        typeof item === "object" && "main" in item
+          ? (item as { main?: ComponentData }).main
+          : (item as ComponentData);
+      return sum + (m && m.price ? Number(m.price) : 0);
+    }, 0);
+
+    const budgetWithin = input
+      ? input.min_budget <= newTotal && newTotal <= input.max_budget
+      : true;
+
+    // Rerun compatibility check on active main picks
+    const mainComponents: Record<string, ComponentData | null> = {};
+    for (const [k, v] of Object.entries(updatedBuild)) {
+      if (!v) continue;
+      mainComponents[k] =
+        typeof v === "object" && "main" in v
+          ? (v as ComponentGroup).main
+          : (v as ComponentData);
+    }
+    const updatedCompat = runCompatibilityCheck(mainComponents);
+
+    let updatedEval = result.evaluation;
+    if (updatedEval && input) {
+      const budgetMax = input.max_budget;
+      const budgetMin = input.min_budget;
+      let budgetScore = 100.0;
+      if (newTotal > budgetMax) {
+        const overshoot = (newTotal - budgetMax) / budgetMax;
+        budgetScore = Math.max(0, Math.round((1 - overshoot) * 1000) / 10);
+      } else if (newTotal < budgetMin) {
+        const undershoot = (budgetMin - newTotal) / budgetMin;
+        budgetScore = Math.max(0, Math.round((1 - undershoot) * 1000) / 10);
+      }
+
+      const totalChecks =
+        updatedCompat.passed + updatedCompat.warnings + updatedCompat.failures;
+      const compatScore =
+        totalChecks > 0
+          ? Math.round(
+              ((totalChecks - updatedCompat.failures) / totalChecks) * 1000
+            ) / 10
+          : 100.0;
+
+      updatedEval = {
+        ...updatedEval,
+        budget_fit: {
+          ...updatedEval.budget_fit,
+          score: budgetScore,
+          passed: budgetScore >= 90,
+          utilization_pct:
+            budgetMax > 0
+              ? Math.round((newTotal / budgetMax) * 1000) / 10
+              : 0,
+          within_range: budgetWithin,
+        },
+        compatibility_reliability: {
+          ...updatedEval.compatibility_reliability,
+          score: compatScore,
+          passed: compatScore === 100.0,
+          checks_passed: totalChecks - updatedCompat.failures,
+          total_checks: totalChecks,
+        },
+      };
+    }
+
+    const updatedResult: BuildResult = {
+      ...result,
+      build: updatedBuild,
+      total: Math.round(newTotal * 100) / 100,
+      budget_fit: budgetWithin,
+      compatibility: updatedCompat,
+      evaluation: updatedEval,
+    };
+
+    setResult(updatedResult);
+    sessionStorage.setItem("smartbuild_result", JSON.stringify(updatedResult));
+  };
+
   if (!result) {
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 overflow-hidden bg-slate-950 text-white">
@@ -265,8 +585,7 @@ export default function BuildResultPage() {
                 { label: "Budget Range", value: `${fmt(input.min_budget)} – ${fmt(input.max_budget)}` },
                 { label: "Primary Activity", value: input.primary_activity },
                 { label: "Secondary Activity", value: input.secondary_activity ?? "None" },
-                { label: "Expected Longevity", value: input.longevity },
-                { label: "Open to Upgrades", value: input.upgrade_open ? "Yes" : "No" },
+                { label: "Target Display", value: input.resolution_target },
               ].map((item) => (
                 <div
                   key={item.label}
@@ -287,7 +606,6 @@ export default function BuildResultPage() {
             {
               key: "prediction_accuracy" as const,
               label: "Prediction Accuracy",
-              icon: "🎯",
               description: "RF model confidence in tier predictions",
               format: (m: EvalMetric) => `${m.score}%`,
               thresholdLabel: (m: EvalMetric) => `≥ ${m.threshold}%`,
@@ -296,7 +614,6 @@ export default function BuildResultPage() {
             {
               key: "budget_fit" as const,
               label: "Budget Fit",
-              icon: "💰",
               description: "Build total within user budget range",
               format: (m: EvalMetric) => `${m.score}%`,
               thresholdLabel: (m: EvalMetric) => `≥ ${m.threshold}%`,
@@ -305,7 +622,6 @@ export default function BuildResultPage() {
             {
               key: "intended_use_alignment" as const,
               label: "Intended-Use Alignment",
-              icon: "🧭",
               description: "Tier allocation matches activity demand",
               format: (m: EvalMetric) => `${m.score}%`,
               thresholdLabel: (m: EvalMetric) => `≥ ${m.threshold}%`,
@@ -314,7 +630,6 @@ export default function BuildResultPage() {
             {
               key: "compatibility_reliability" as const,
               label: "Compatibility Reliability",
-              icon: "🔗",
               description: "Hardware compatibility checks passed",
               format: (m: EvalMetric) =>
                 `${m.checks_passed ?? 0}/${m.total_checks ?? 0}`,
@@ -324,7 +639,6 @@ export default function BuildResultPage() {
             {
               key: "recommendation_speed" as const,
               label: "Recommendation Speed",
-              icon: "⚡",
               description: "Pipeline execution time",
               format: (m: EvalMetric) => `${m.score_seconds ?? 0}s`,
               thresholdLabel: (m: EvalMetric) =>
@@ -374,11 +688,8 @@ export default function BuildResultPage() {
                           : "border-red-400/20 bg-red-400/[0.04] hover:bg-red-400/[0.08]"
                       }`}
                     >
-                      {/* Icon */}
-                      <span className="text-xl leading-none">{param.icon}</span>
-
                       {/* Label */}
-                      <p className="mt-2 text-[11px] font-medium uppercase tracking-wider text-white/60">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-white/60">
                         {param.label}
                       </p>
 
@@ -407,7 +718,7 @@ export default function BuildResultPage() {
                             passed ? "text-emerald-300" : "text-red-300"
                           }`}
                         >
-                          {passed ? "✓ PASS" : "✗ FAIL"}
+                          {passed ? "PASS" : "FAIL"}
                         </span>
                       </div>
 
@@ -434,10 +745,24 @@ export default function BuildResultPage() {
             </div>
 
             <div className="mt-6 grid gap-3">
-              {buildEntries.map(([key, comp]) => {
+              {Object.entries(result.build).map(([key, entry]) => {
+                if (!entry) return null;
+
+                // Support both new {main, alternatives} structure and legacy flat structure
+                const mainComp: ComponentData | null =
+                  typeof entry === "object" && "main" in entry
+                    ? (entry as ComponentGroup).main
+                    : (entry as ComponentData);
+
+                const alternatives: ComponentData[] =
+                  typeof entry === "object" && "alternatives" in entry && Array.isArray((entry as ComponentGroup).alternatives)
+                    ? ((entry as ComponentGroup).alternatives as ComponentData[])
+                    : [];
+
+                if (!mainComp) return null;
+
                 const meta = COMPONENT_LABELS[key] ?? {
                   label: key,
-                  icon: "🔧",
                 };
                 const tier = result.tiers[key];
                 const tierClass = TIER_COLORS[tier] ?? TIER_COLORS.mid;
@@ -445,23 +770,26 @@ export default function BuildResultPage() {
                 return (
                   <div
                     key={key}
-                    className="group rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5 transition hover:bg-white/[0.08]"
+                    className="group rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:bg-white/[0.08]"
                   >
+                    {/* Primary Component Pick */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-3 min-w-0">
-                        <span className="mt-0.5 text-lg leading-none">
-                          {meta.icon}
-                        </span>
                         <div className="min-w-0">
-                          <p className="text-xs text-white/50">{meta.label}</p>
-                          <p className="mt-0.5 text-sm font-medium text-white truncate">
-                            {comp.name ?? "Unknown"}
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs text-white/50">{meta.label}</p>
+                            <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-300">
+                              Main Option
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-sm font-semibold text-white truncate">
+                            {mainComp.name ?? "Unknown"}
                           </p>
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <span className="text-sm font-semibold text-white">
-                          {comp.price ? fmt(comp.price) : "—"}
+                          {mainComp.price ? fmt(Number(mainComp.price)) : "—"}
                         </span>
                         {tier && (
                           <span
@@ -472,6 +800,41 @@ export default function BuildResultPage() {
                         )}
                       </div>
                     </div>
+
+                    {/* Alternative Options */}
+                    {alternatives.length > 0 && (
+                      <div className="mt-3 border-t border-white/10 pt-2.5">
+                        <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1.5 font-medium flex items-center justify-between">
+                          <span>Alternative Options (Click to Swap):</span>
+                        </p>
+                        <div className="grid gap-1.5">
+                          {alternatives.map((alt, idx) => (
+                            <div
+                              key={`${key}-alt-${alt.name ?? idx}-${idx}`}
+                              className="flex items-center justify-between text-xs rounded-xl bg-white/[0.04] px-3 py-2 border border-white/5 hover:border-amber-300/30 transition group/alt"
+                            >
+                              <span className="text-white/80 truncate mr-2 flex items-center gap-1.5 min-w-0">
+                                <span className="text-amber-300/80 font-mono text-[10px] shrink-0">#{idx + 2}</span>
+                                <span className="truncate">{alt.name ?? "Alternative"}</span>
+                              </span>
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span className="text-white/60 font-medium">
+                                  {alt.price ? fmt(Number(alt.price)) : "—"}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSwitchComponent(key, idx)}
+                                  className="rounded-lg border border-amber-300/40 bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200 shadow-sm transition hover:bg-amber-300 hover:text-slate-950 flex items-center gap-1 cursor-pointer active:scale-95"
+                                >
+                                  <span>Swap</span>
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -495,7 +858,7 @@ export default function BuildResultPage() {
                       : "border-red-400/50 bg-red-400/20 text-red-200"
                   }`}
                 >
-                  {result.budget_fit ? "✓ Within Budget" : "✗ Over Budget"}
+                  {result.budget_fit ? "Within Budget" : "Over Budget"}
                 </div>
               </div>
               {input && (
@@ -622,6 +985,14 @@ export default function BuildResultPage() {
               </p>
               <div className="mt-5 flex flex-col gap-3">
                 <button
+                  onClick={() => setTicketModalOpen(true)}
+                  className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 px-5 py-3 text-center text-sm font-bold text-slate-950 shadow-lg shadow-amber-400/25 transition-all hover:shadow-amber-400/40 hover:brightness-110 active:scale-95 cursor-pointer"
+                >
+                  <span className="relative flex items-center justify-center gap-2">
+                    <span>Get Store Ticket / Reserve in Store</span>
+                  </span>
+                </button>
+                <button
                   onClick={handleDownloadPdf}
                   disabled={downloading}
                   className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:shadow-emerald-500/40 hover:brightness-110 disabled:cursor-wait disabled:opacity-70"
@@ -665,6 +1036,14 @@ export default function BuildResultPage() {
           </div>
         </div>
       </main>
+
+      {/* Store Ticket Modal */}
+      <StoreTicketModal
+        isOpen={ticketModalOpen}
+        onClose={() => setTicketModalOpen(false)}
+        totalPrice={result.total}
+        buildData={result.build}
+      />
     </div>
   );
 }

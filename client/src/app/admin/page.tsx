@@ -4,24 +4,16 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getToken, clearToken, getCategories, type Category } from "@/lib/adminApi";
 import AdminTable from "./AdminTable";
+import TicketsTable from "./TicketsTable";
 
-const CATEGORY_ICONS: Record<string, string> = {
-  cpu:         "🖥️",
-  gpu:         "🎮",
-  ram:         "💾",
-  storage:     "💿",
-  motherboard: "🔌",
-  psu:         "⚡",
-  case:        "📦",
-  cpu_cooler:  "❄️",
-  case_fan:    "🌀",
-};
+const CATEGORY_ICONS: Record<string, string> = {};
+
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selected, setSelected] = useState<string>("");
+  const [selected, setSelected] = useState<string>("tickets");
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [catLoading, setCatLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -45,15 +37,12 @@ export default function AdminDashboard() {
       const initialCounts: Record<string, number> = {};
       for (const c of res.categories) initialCounts[c.key] = c.count;
       setCounts(initialCounts);
-      if (res.categories.length > 0 && !selected) {
-        setSelected(res.categories[0].key);
-      }
     } catch {
       // token expired → adminApi redirects automatically
     } finally {
       setCatLoading(false);
     }
-  }, [selected]);
+  }, []);
 
   useEffect(() => {
     if (getToken()) fetchCategories();
@@ -93,6 +82,29 @@ export default function AdminDashboard() {
         {/* Category list */}
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+            Reservations
+          </p>
+          <button
+            id="nav-tickets"
+            onClick={() => {
+              setSelected("tickets");
+              setSidebarOpen(false);
+            }}
+            className={`mb-4 flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm transition ${
+              selected === "tickets"
+                ? "bg-amber-400/20 text-amber-200 border border-amber-400/40 shadow-sm"
+                : "text-slate-300 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <span className="flex items-center gap-2.5">
+              <span className="font-semibold">Store Tickets</span>
+            </span>
+            <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+              Active
+            </span>
+          </button>
+
+          <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
             Components
           </p>
           {catLoading
@@ -117,7 +129,6 @@ export default function AdminDashboard() {
                   }`}
                 >
                   <span className="flex items-center gap-2.5">
-                    <span>{CATEGORY_ICONS[cat.key] ?? "🔧"}</span>
                     <span className="capitalize">{cat.key.replace(/_/g, " ")}</span>
                   </span>
                   <span className="rounded-md bg-white/5 px-2 py-0.5 text-xs text-slate-400">
@@ -160,15 +171,21 @@ export default function AdminDashboard() {
             </button>
             <div>
               <h1 className="font-heading text-lg font-semibold capitalize">
-                {selectedCat
-                  ? `${CATEGORY_ICONS[selectedCat.key] ?? ""} ${selectedCat.key.replace(/_/g, " ")}`
+                {selected === "tickets"
+                  ? "Store Tickets & Reservations"
+                  : selectedCat
+                  ? selectedCat.key.replace(/_/g, " ")
                   : "Component Manager"}
               </h1>
-              {selectedCat && (
+              {selected === "tickets" ? (
+                <p className="text-xs text-slate-500">
+                  Manage walk-in tickets, reservation statuses, and parts stock
+                </p>
+              ) : selectedCat ? (
                 <p className="text-xs text-slate-500">
                   {(counts[selectedCat.key] ?? selectedCat.count).toLocaleString()} entries in Supabase
                 </p>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -179,7 +196,7 @@ export default function AdminDashboard() {
                 ● Supabase connected
               </span>
               <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs text-amber-200">
-                {categories.reduce((s, c) => s + (counts[c.key] ?? c.count), 0).toLocaleString()} total rows
+                {categories.reduce((s, c) => s + (counts[c.key] ?? c.count), 0).toLocaleString()} components
               </span>
             </div>
 
@@ -194,26 +211,29 @@ export default function AdminDashboard() {
                 onClick={handleLogout}
                 className="flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/20 hover:text-white"
               >
-                <span>🚪</span>
-                <span>Logout</span>
+                Logout
               </button>
             </div>
           </div>
         </header>
 
         {/* Table panel */}
-        <main className="flex-1 overflow-auto px-6 py-6">
-          {selected ? (
-            <AdminTable
-              key={selected}
-              category={selected}
-              onCountChange={(n) =>
-                setCounts((prev) => ({ ...prev, [selected]: n }))
-              }
-            />
+        <main className="flex-1 overflow-auto">
+          {selected === "tickets" ? (
+            <TicketsTable />
+          ) : selected ? (
+            <div className="p-6">
+              <AdminTable
+                key={selected}
+                category={selected}
+                onCountChange={(n) =>
+                  setCounts((prev) => ({ ...prev, [selected]: n }))
+                }
+              />
+            </div>
           ) : (
             <div className="flex h-full items-center justify-center text-slate-600">
-              Select a category from the sidebar.
+              Select an option from the sidebar.
             </div>
           )}
         </main>

@@ -18,6 +18,7 @@ from services.builder_service import (
     get_builder_options,
     finalize_custom_build,
 )
+from services.keepalive import start_keepalive
 from routers.admin import router as admin_router
 from routers.tickets import router as tickets_router, cleanup_expired_tickets
 from services.admin_seeder import run_seeder
@@ -81,6 +82,12 @@ def startup_event():
         get_cheapest_compatible_build()
     except Exception as e:
         print(f"[Warning] Failed to pre-warm cheapest build cache: {e}")
+
+    # Start Supabase keep-alive pinger (prevents free-tier idle timeouts)
+    try:
+        start_keepalive()
+    except Exception as e:
+        print(f"[Warning] Keep-alive thread failed to start: {e}")
 
 
 @app.get("/")

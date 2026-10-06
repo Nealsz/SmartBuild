@@ -111,7 +111,7 @@ recommendation until someone manually updates its stock count. Missing or
 unparseable stock values are treated as 0 (excluded), never as "unlimited."
 
 HOW TO RUN:
-  python train_model_v3.py
+  python train_model_v4.py
   Outputs: smartbuild_model.pkl, tier_boundaries.json
   Data source: Supabase (live catalog) first, local CSV fallback.
 """
@@ -276,6 +276,186 @@ ACTIVITY_WEIGHTS = {
     "Simulations / Data Analysis": {"cpu_single":0.3,"cpu_multi":0.9,"gpu_compute":0.5,"vram":0.4,"ram_cap":0.9,"storage_spd":0.8},
 }
 
+# ── Activity Sub-Categories (Intensity tiers: Light, Standard, Heavy) ───────
+ACTIVITY_SUBCATEGORIES = {
+    "Gaming": {
+        "Light": {
+            "description": "Valorant, LoL, CS2, indie titles",
+            "hardware_focus": "6-core CPU, entry GPU, 16GB RAM, 1080p 60fps+",
+            "weights": {"cpu_single": 0.60, "cpu_multi": 0.20, "gpu_compute": 0.60, "vram": 0.30, "ram_cap": 0.30, "storage_spd": 0.40},
+        },
+        "Standard": {
+            "description": "GTA V, Apex Legends, Helldivers 2",
+            "hardware_focus": "6-8 core, mid GPU, 16GB RAM, 1080p-1440p 60-144fps",
+            "weights": {"cpu_single": 0.70, "cpu_multi": 0.30, "gpu_compute": 0.90, "vram": 0.60, "ram_cap": 0.30, "storage_spd": 0.60},
+        },
+        "Heavy": {
+            "description": "Cyberpunk 2077, Alan Wake 2, Black Myth Wukong, modded",
+            "hardware_focus": "8-core+, high-end GPU, 32GB RAM, 1440p-4K w/ ray tracing",
+            "weights": {"cpu_single": 0.80, "cpu_multi": 0.50, "gpu_compute": 1.00, "vram": 0.90, "ram_cap": 0.60, "storage_spd": 0.70},
+        },
+    },
+    "Browsing & Streaming": {
+        "Light": {
+            "description": "Basic web, email, SD/HD video",
+            "hardware_focus": "dual/quad-core, 8GB RAM",
+            "weights": {"cpu_single": 0.20, "cpu_multi": 0.10, "gpu_compute": 0.10, "vram": 0.10, "ram_cap": 0.10, "storage_spd": 0.10},
+        },
+        "Standard": {
+            "description": "Many tabs, 4K streaming, light multitasking",
+            "hardware_focus": "quad-core+, 8-16GB RAM",
+            "weights": {"cpu_single": 0.30, "cpu_multi": 0.10, "gpu_compute": 0.20, "vram": 0.10, "ram_cap": 0.20, "storage_spd": 0.20},
+        },
+        "Heavy": {
+            "description": "Heavy multitasking + 4K/HDR + recording",
+            "hardware_focus": "6-core+, 16GB RAM",
+            "weights": {"cpu_single": 0.40, "cpu_multi": 0.30, "gpu_compute": 0.30, "vram": 0.20, "ram_cap": 0.30, "storage_spd": 0.30},
+        },
+    },
+    "Documents / Office Work": {
+        "Light": {
+            "description": "Word/Excel/browser",
+            "hardware_focus": "dual/quad-core, 8GB RAM",
+            "weights": {"cpu_single": 0.30, "cpu_multi": 0.20, "gpu_compute": 0.00, "vram": 0.00, "ram_cap": 0.20, "storage_spd": 0.20},
+        },
+        "Standard": {
+            "description": "Heavy spreadsheets/macros, video calls",
+            "hardware_focus": "quad-core+, 16GB RAM",
+            "weights": {"cpu_single": 0.40, "cpu_multi": 0.30, "gpu_compute": 0.00, "vram": 0.00, "ram_cap": 0.40, "storage_spd": 0.30},
+        },
+        "Heavy": {
+            "description": "Large datasets, Power BI/VBA, multi-monitor + calls",
+            "hardware_focus": "6-core+, 32GB RAM",
+            "weights": {"cpu_single": 0.60, "cpu_multi": 0.50, "gpu_compute": 0.10, "vram": 0.10, "ram_cap": 0.60, "storage_spd": 0.50},
+        },
+    },
+    "Video Editing": {
+        "Light": {
+            "description": "1080p vlogs/shorts (CapCut, basic Premiere)",
+            "hardware_focus": "6-core, 16GB RAM, entry GPU w/ NVENC",
+            "weights": {"cpu_single": 0.30, "cpu_multi": 0.60, "gpu_compute": 0.40, "vram": 0.30, "ram_cap": 0.50, "storage_spd": 0.60},
+        },
+        "Standard": {
+            "description": "1080p-4K multi-track, color grading (Premiere/Resolve)",
+            "hardware_focus": "8-core, 32GB RAM, 8GB+ VRAM",
+            "weights": {"cpu_single": 0.30, "cpu_multi": 0.90, "gpu_compute": 0.60, "vram": 0.50, "ram_cap": 0.80, "storage_spd": 0.90},
+        },
+        "Heavy": {
+            "description": "4K-8K RAW, VFX/compositing (Resolve Studio/Fusion)",
+            "hardware_focus": "12-16 core, 64GB RAM, 16GB+ VRAM",
+            "weights": {"cpu_single": 0.40, "cpu_multi": 1.00, "gpu_compute": 0.85, "vram": 0.90, "ram_cap": 1.00, "storage_spd": 1.00},
+        },
+    },
+    "Photo / Graphic Design": {
+        "Light": {
+            "description": "Basic retouching, small exports",
+            "hardware_focus": "quad-core, 16GB RAM",
+            "weights": {"cpu_single": 0.30, "cpu_multi": 0.30, "gpu_compute": 0.20, "vram": 0.20, "ram_cap": 0.40, "storage_spd": 0.40},
+        },
+        "Standard": {
+            "description": "Large PSDs, multi-app workflows",
+            "hardware_focus": "6-8 core, 32GB RAM, mid GPU",
+            "weights": {"cpu_single": 0.40, "cpu_multi": 0.50, "gpu_compute": 0.50, "vram": 0.40, "ram_cap": 0.60, "storage_spd": 0.50},
+        },
+        "Heavy": {
+            "description": "Huge composites, print production",
+            "hardware_focus": "8-core+, 64GB RAM",
+            "weights": {"cpu_single": 0.60, "cpu_multi": 0.70, "gpu_compute": 0.70, "vram": 0.60, "ram_cap": 0.90, "storage_spd": 0.70},
+        },
+    },
+    "3D Modeling or Animation": {
+        "Light": {
+            "description": "Blender/SketchUp hobbyist",
+            "hardware_focus": "6-core, 16GB RAM, entry GPU",
+            "weights": {"cpu_single": 0.30, "cpu_multi": 0.50, "gpu_compute": 0.60, "vram": 0.50, "ram_cap": 0.50, "storage_spd": 0.50},
+        },
+        "Standard": {
+            "description": "Maya/3ds Max professional + mid rendering",
+            "hardware_focus": "8-core, 32GB RAM, 12GB+ VRAM",
+            "weights": {"cpu_single": 0.30, "cpu_multi": 0.80, "gpu_compute": 0.90, "vram": 0.90, "ram_cap": 0.70, "storage_spd": 0.60},
+        },
+        "Heavy": {
+            "description": "Film-quality rendering, sims (Houdini/UE cinematics)",
+            "hardware_focus": "16-core+, 64-128GB RAM, 24GB+ VRAM",
+            "weights": {"cpu_single": 0.40, "cpu_multi": 1.00, "gpu_compute": 1.00, "vram": 1.00, "ram_cap": 1.00, "storage_spd": 0.80},
+        },
+    },
+    "Music Production": {
+        "Light": {
+            "description": "Simple DAW, few tracks",
+            "hardware_focus": "quad-core, 16GB RAM",
+            "weights": {"cpu_single": 0.40, "cpu_multi": 0.40, "gpu_compute": 0.00, "vram": 0.00, "ram_cap": 0.40, "storage_spd": 0.50},
+        },
+        "Standard": {
+            "description": "Multi-track + moderate VSTs (Ableton/FL standard)",
+            "hardware_focus": "6-8 core, 32GB RAM",
+            "weights": {"cpu_single": 0.50, "cpu_multi": 0.60, "gpu_compute": 0.10, "vram": 0.10, "ram_cap": 0.70, "storage_spd": 0.70},
+        },
+        "Heavy": {
+            "description": "Orchestral libraries, heavy plugin stacking",
+            "hardware_focus": "8-12 core, 64GB RAM, fast NVMe",
+            "weights": {"cpu_single": 0.70, "cpu_multi": 0.90, "gpu_compute": 0.10, "vram": 0.10, "ram_cap": 0.95, "storage_spd": 0.90},
+        },
+    },
+    "Programming or Development": {
+        "Light": {
+            "description": "Scripting, basic web dev",
+            "hardware_focus": "quad-core, 16GB RAM",
+            "weights": {"cpu_single": 0.40, "cpu_multi": 0.40, "gpu_compute": 0.00, "vram": 0.00, "ram_cap": 0.40, "storage_spd": 0.40},
+        },
+        "Standard": {
+            "description": "Full-stack + Docker + multiple IDEs",
+            "hardware_focus": "6-8 core, 32GB RAM",
+            "weights": {"cpu_single": 0.50, "cpu_multi": 0.70, "gpu_compute": 0.10, "vram": 0.10, "ram_cap": 0.70, "storage_spd": 0.60},
+        },
+        "Heavy": {
+            "description": "Large builds, multiple VMs, local ML training",
+            "hardware_focus": "12-core+, 64GB RAM, GPU for CUDA",
+            "weights": {"cpu_single": 0.60, "cpu_multi": 0.95, "gpu_compute": 0.60, "vram": 0.50, "ram_cap": 0.95, "storage_spd": 0.80},
+        },
+    },
+    "Streaming / Recording": {
+        "Light": {
+            "description": "Occasional 720-1080p single-app capture",
+            "hardware_focus": "6-core, 16GB RAM, GPU w/ NVENC",
+            "weights": {"cpu_single": 0.35, "cpu_multi": 0.50, "gpu_compute": 0.50, "vram": 0.30, "ram_cap": 0.50, "storage_spd": 0.50},
+        },
+        "Standard": {
+            "description": "Regular 1080p stream + overlays while gaming",
+            "hardware_focus": "8-core, 32GB RAM, mid-high GPU",
+            "weights": {"cpu_single": 0.40, "cpu_multi": 0.80, "gpu_compute": 0.70, "vram": 0.40, "ram_cap": 0.60, "storage_spd": 0.70},
+        },
+        "Heavy": {
+            "description": "Multi-platform 1440-4K + heavy game + filters",
+            "hardware_focus": "12-core+, 32-64GB RAM, high-end GPU",
+            "weights": {"cpu_single": 0.60, "cpu_multi": 1.00, "gpu_compute": 0.90, "vram": 0.70, "ram_cap": 0.85, "storage_spd": 0.80},
+        },
+    },
+    "Simulations / Data Analysis": {
+        "Light": {
+            "description": "Small datasets, basic scripts",
+            "hardware_focus": "quad-core, 16GB RAM",
+            "weights": {"cpu_single": 0.30, "cpu_multi": 0.50, "gpu_compute": 0.20, "vram": 0.20, "ram_cap": 0.50, "storage_spd": 0.50},
+        },
+        "Standard": {
+            "description": "Pandas/R workflows, moderate ML",
+            "hardware_focus": "8-core, 32GB RAM",
+            "weights": {"cpu_single": 0.30, "cpu_multi": 0.90, "gpu_compute": 0.50, "vram": 0.40, "ram_cap": 0.90, "storage_spd": 0.80},
+        },
+        "Heavy": {
+            "description": "CFD/FEA, big data, deep learning training",
+            "hardware_focus": "16-core+, 64-128GB RAM, CUDA GPU",
+            "weights": {"cpu_single": 0.50, "cpu_multi": 1.00, "gpu_compute": 0.95, "vram": 0.90, "ram_cap": 1.00, "storage_spd": 0.95},
+        },
+    },
+}
+
+def get_activity_weights(activity: str, subcategory: str | None = None) -> dict[str, float]:
+    sub = (subcategory or "Standard").strip()
+    if activity in ACTIVITY_SUBCATEGORIES and sub in ACTIVITY_SUBCATEGORIES[activity]:
+        return ACTIVITY_SUBCATEGORIES[activity][sub]["weights"]
+    return ACTIVITY_WEIGHTS.get(activity, ACTIVITY_WEIGHTS["Browsing & Streaming"])
+
 RESOLUTION_TARGET_WEIGHTS = {
     "1080p 60Hz (FHD Standard)":     {"tier_mult": 0.85, "vram_mult": 0.85, "gpu_compute_mult": 0.85, "cpu_single_mult": 1.00},
     "1080p 144Hz+ (FHD High FPS)":   {"tier_mult": 1.00, "vram_mult": 0.95, "gpu_compute_mult": 1.00, "cpu_single_mult": 1.15},
@@ -297,8 +477,9 @@ GPU_TDP_MAP = {
     "RTX 3090":350,"RTX 3080":320,"RTX 3070":220,"RTX 3060 Ti":200,"RTX 3060":170,"RTX 3050":130,
     "RX 9070 XT":220,"RX 9070":200,"RX 9060 XT":150,
     "RX 7900 XTX":355,"RX 7900 XT":315,"RX 7800 XT":263,"RX 7700 XT":245,"RX 7600 XT":190,"RX 7600":165,
-    "RX 6800 XT":300,"RX 6700 XT":230,"RX 6600 XT":160,"RX 6600":132,
-    "Arc B580":190,"Arc B570":140,
+    "RX 6800 XT":300,"RX 6700 XT":230,"RX 6600 XT":160,"RX 6600":132,"RX 6500 XT":107,
+    "Arc B580":190,"Arc B570":140,"Arc A580":185,
+    "GTX 1650":75,
 }
 PCIE5_CHIPSETS = ["Z790","Z890","X870","X670","TRX"]
 
@@ -376,11 +557,17 @@ def minmax(series: pd.Series) -> pd.Series:
         return pd.Series([50.0] * len(series), index=series.index)
     return (series - series.min()) / rng * 100
 
-def compute_intent(primary, secondary=None, resolution_target="1080p 144Hz+ (FHD High FPS)"):
+def compute_intent(
+    primary,
+    secondary=None,
+    resolution_target="1080p 144Hz+ (FHD High FPS)",
+    primary_subcategory=None,
+    secondary_subcategory=None,
+):
     dims = ["cpu_single","cpu_multi","gpu_compute","vram","ram_cap","storage_spd"]
-    p = ACTIVITY_WEIGHTS[primary]
+    p = get_activity_weights(primary, primary_subcategory)
     if secondary:
-        s = ACTIVITY_WEIGHTS[secondary]
+        s = get_activity_weights(secondary, secondary_subcategory)
         base = {d: round(p[d]*0.70 + s[d]*0.30, 4) for d in dims}
     else:
         base = {d: p[d] for d in dims}
@@ -488,7 +675,7 @@ def score_case_fan(df):
         df["final_score"] = minmax(df["price"] * -1)
     return df
 
-def score_cooler(df, cpu_tdp, cpu_socket=None):
+def score_cooler(df, cpu_tdp, cpu_socket=None, cooler_type=None):
     df = df.copy()
     df["size"] = pd.to_numeric(df["size"], errors="coerce")
     if cpu_socket is not None:
@@ -497,13 +684,33 @@ def score_cooler(df, cpu_tdp, cpu_socket=None):
             df = df[~df["name"].str.contains("Intel", case=False, na=False)].copy()
         elif "LGA" in sock:
             df = df[~df["name"].str.contains("AMD", case=False, na=False)].copy()
-    if cpu_tdp >= 125:
+
+    pref = (cooler_type or "Auto").strip().lower()
+    if pref in ["air", "air cooling"]:
+        air_df = df[df["size"].isna()].copy()
+        if not air_df.empty:
+            df = air_df
+    elif pref in ["liquid", "aio", "water", "liquid cooling"]:
+        aio_df = df[df["size"].notna()].copy()
+        if not aio_df.empty:
+            df = aio_df
+
+    # Determine whether current candidate pool is Air or AIO
+    is_air_pool = df["size"].isna().all()
+    if is_air_pool or (pref == "auto" and cpu_tdp < 125):
+        df["size"] = df["size"].fillna(0)
+        if cpu_tdp >= 125 and is_air_pool:
+            # High TDP running on Air: rank by price/quality ascending (beefier heatsinks under cap)
+            df["final_score"] = minmax(df["price"])
+        else:
+            # Lower TDP or standard air: value/efficiency
+            df["final_score"] = minmax(df["price"] * -1)
+    else:
+        # AIO scoring: radiator size and tier
         df["is_aio"] = df["size"].notna().astype(float)
         df["size"]   = df["size"].fillna(0)
         df["final_score"] = minmax(minmax(df["is_aio"])*0.50 + minmax(df["size"])*0.50)
-    else:
-        df["size"] = df["size"].fillna(0)
-        df["final_score"] = minmax(df["price"] * -1)
+
     return df
 
 
@@ -546,8 +753,12 @@ def compute_ideal_shares(intent: dict, adjust_strength: float = 0.6,
 
 
 # ── Feature vector — budget is deliberately NOT included ───────────────────
-def build_feature_row(primary, secondary, resolution_target):
-    intent = compute_intent(primary, secondary, resolution_target)
+def build_feature_row(primary, secondary, resolution_target, primary_subcategory=None, secondary_subcategory=None):
+    intent = compute_intent(
+        primary, secondary, resolution_target,
+        primary_subcategory=primary_subcategory,
+        secondary_subcategory=secondary_subcategory,
+    )
     res = RESOLUTION_TARGET_WEIGHTS.get(resolution_target, RESOLUTION_TARGET_WEIGHTS["1080p 144Hz+ (FHD High FPS)"])
     return {
         "intent_cpu_single":  intent["cpu_single"],
@@ -628,7 +839,15 @@ def save_artifacts(models, feature_cols, target_cols, tier_boundaries=None):
 
 
 # ── STEP B: inference — predict shares, renormalize, apply to budget ───────
-def predict_allocation(primary, secondary, resolution_target, model_path=OUTPUT_MODEL, buffer=0.97):
+def predict_allocation(
+    primary,
+    secondary,
+    resolution_target,
+    model_path=OUTPUT_MODEL,
+    buffer=0.97,
+    primary_subcategory=None,
+    secondary_subcategory=None,
+):
     """Returns per-category budget SHARES that sum to `buffer` (default
     0.97), leaving headroom for tax/shipping/rounding so total spend never
     exceeds the user's stated budget."""
@@ -636,7 +855,11 @@ def predict_allocation(primary, secondary, resolution_target, model_path=OUTPUT_
     if _cached_artifact is None:
         _cached_artifact = joblib.load(model_path)
     artifact = _cached_artifact
-    features = build_feature_row(primary, secondary, resolution_target)
+    features = build_feature_row(
+        primary, secondary, resolution_target,
+        primary_subcategory=primary_subcategory,
+        secondary_subcategory=secondary_subcategory,
+    )
     feat_df  = pd.DataFrame([features])[artifact["feature_cols"]]
 
     raw = {}
@@ -648,16 +871,35 @@ def predict_allocation(primary, secondary, resolution_target, model_path=OUTPUT_
     return {cat: (v / total) * buffer for cat, v in raw.items()}
 
 
-def select_build(budget_min, budget_max, primary, secondary, resolution_target, dfs, shares=None):
+def select_build(
+    budget_min,
+    budget_max,
+    primary,
+    secondary,
+    resolution_target,
+    dfs,
+    shares=None,
+    primary_subcategory=None,
+    secondary_subcategory=None,
+    cooling_preference=None,
+):
     """Full build selection: predicted allocation shares -> per-category
     budget caps -> existing intent-weighted scoring picks the best SKU
     under each cap. Total spend is bounded by construction."""
     if shares is None:
-        shares = predict_allocation(primary, secondary, resolution_target)
+        shares = predict_allocation(
+            primary, secondary, resolution_target,
+            primary_subcategory=primary_subcategory,
+            secondary_subcategory=secondary_subcategory,
+        )
     budget_mid = (budget_min + budget_max) / 2
     caps = {cat: share * budget_mid for cat, share in shares.items()}
 
-    intent = compute_intent(primary, secondary, resolution_target)
+    intent = compute_intent(
+        primary, secondary, resolution_target,
+        primary_subcategory=primary_subcategory,
+        secondary_subcategory=secondary_subcategory,
+    )
     res = RESOLUTION_TARGET_WEIGHTS.get(resolution_target, RESOLUTION_TARGET_WEIGHTS["1080p 144Hz+ (FHD High FPS)"])
     tier_mult = res["tier_mult"]
 
@@ -734,6 +976,28 @@ def select_build(budget_min, budget_max, primary, secondary, resolution_target, 
         cands = pick_top_n(scored_df, cap, n=n + 5)
         m_name = str(main_row.get("name", "")) if main_row is not None else ""
         return [r for r in cands if str(r.get("name", "")) != m_name][:n]
+
+    def alternates_cooler(cooler_df, cpu_tdp, cpu_sock, cap, main_row, cooling_pref=None, n=3):
+        pref = (cooling_pref or "Auto").strip().lower()
+        m_name = str(main_row.get("name", "")) if main_row is not None else ""
+        if pref in ["air", "air cooling"] and cpu_tdp >= 125:
+            # User chose Air, but CPU TDP >= 125W:
+            # Main pick is user's Air pick. Alternates prominently offer top AIO options
+            # as the recommended fix, while keeping other Air options selectable.
+            aio_df = score_cooler(cooler_df, cpu_tdp, cpu_sock, cooler_type="Liquid")
+            aio_cands = pick_top_n(aio_df, cap, n=n)
+            enriched_aio = []
+            for item in aio_cands:
+                r = dict(item)
+                r["is_recommended_fix"] = True
+                r["fix_reason"] = "This CPU runs hot enough that air cooling may struggle - here's a liquid option instead"
+                enriched_aio.append(r)
+            air_df = score_cooler(cooler_df, cpu_tdp, cpu_sock, cooler_type="Air")
+            air_cands = [r for r in pick_top_n(air_df, cap, n=n + 2) if str(r.get("name", "")) != m_name]
+            return (enriched_aio + air_cands)[:n]
+        else:
+            scored = score_cooler(cooler_df, cpu_tdp, cpu_sock, cooler_type=cooling_pref)
+            return alternates_generic(scored, cap, main_row, n=n)
 
     # ── Socket affordability & valid sockets ────────────────────────────
     mobo_df = dfs["motherboard"]
@@ -819,7 +1083,18 @@ def select_build(budget_min, budget_max, primary, secondary, resolution_target, 
     stor_row = pick(score_storage(dfs["storage"], intent, tier_mult, pcie5_ok=pcie5_ok), caps["storage"])
     psu_row  = pick(score_psu(dfs["psu"], cpu_tdp, gpu_est_watt), caps["psu"])
     case_row = pick(score_case(dfs["case"], mobo_ff), caps["case"])
-    cool_row = pick(score_cooler(dfs["cpu_cooler"], cpu_tdp, cpu_sock), caps["cpu_cooler"])
+    cool_row = pick(score_cooler(dfs["cpu_cooler"], cpu_tdp, cpu_sock, cooler_type=cooling_preference), caps["cpu_cooler"])
+    pref_clean = (cooling_preference or "Auto").strip().lower()
+    if pref_clean in ["air", "air cooling"] and cpu_tdp >= 125 and cool_row is not None:
+        cool_row = dict(cool_row)
+        cool_row["mismatch_advisory"] = {
+            "has_mismatch": True,
+            "type": "cooling_mismatch",
+            "reason": "This CPU runs hot enough that air cooling may struggle - here's a liquid option instead",
+            "cpu_tdp": cpu_tdp,
+            "override_allowed": True,
+            "recommended_fix_type": "Liquid / AIO",
+        }
     fan_row  = pick(score_case_fan(dfs["case_fan"]), caps["case_fan"]) if "case_fan" in dfs else None
 
     picks = {"cpu": cpu_row, "gpu": gpu_row, "ram": ram_row, "motherboard": mb_row,
@@ -877,7 +1152,7 @@ def select_build(budget_min, budget_max, primary, secondary, resolution_target, 
         "motherboard": alternates_motherboard(score_motherboard(dfs["motherboard"], cpu_sock, ram_ddr), caps["motherboard"], case_row, mb_row),
         "storage":     alternates_generic(score_storage(dfs["storage"], intent, tier_mult, pcie5_ok=pcie5_ok), caps["storage"], picks["storage"]),
         "case":        alternates_generic(score_case(dfs["case"], mobo_ff), caps["case"], case_row),
-        "cpu_cooler":  alternates_generic(score_cooler(dfs["cpu_cooler"], cpu_tdp, cpu_sock), caps["cpu_cooler"], cool_row),
+        "cpu_cooler":  alternates_cooler(dfs["cpu_cooler"], cpu_tdp, cpu_sock, caps["cpu_cooler"], cool_row, cooling_pref=cooling_preference),
         "case_fan":    alternates_generic(score_case_fan(dfs["case_fan"]), caps["case_fan"], fan_row) if "case_fan" in dfs else [],
     }
 
@@ -903,7 +1178,7 @@ DOWNSTREAM_OF = {
     "motherboard": ["storage", "case"],             # pcie5_ok, form factor
 }
 
-def swap_alternate(picks, changed_component, new_row, budget_mid, shares, intent, tier_mult, dfs):
+def swap_alternate(picks, changed_component, new_row, budget_mid, shares, intent, tier_mult, dfs, cooling_preference=None):
     picks = dict(picks)
     picks[changed_component] = new_row
 
@@ -938,7 +1213,7 @@ def swap_alternate(picks, changed_component, new_row, budget_mid, shares, intent
         elif comp == "case":
             s = score_case(dfs["case"], mobo_ff)
         elif comp == "cpu_cooler":
-            s = score_cooler(dfs["cpu_cooler"], cpu_tdp)
+            s = score_cooler(dfs["cpu_cooler"], cpu_tdp, cpu_socket=cpu_sock, cooler_type=cooling_preference)
         else:
             continue
         aff = s[s["price"] <= cap].sort_values("final_score", ascending=False)

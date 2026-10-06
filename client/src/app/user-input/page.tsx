@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -65,6 +65,175 @@ const ACTIVITIES: ActivityDetail[] = [
 
 const ACTIVITY_OPTIONS = ACTIVITIES.map((a) => a.value);
 
+type SubcategoryDetail = {
+  description: string;
+  hardwareFocus: string;
+};
+
+const ACTIVITY_SUBCATEGORIES: Record<string, Record<"Light" | "Standard" | "Heavy", SubcategoryDetail>> = {
+  "Gaming": {
+    "Light": {
+      description: "Valorant, LoL, CS2, indie titles",
+      hardwareFocus: "6-core CPU, entry GPU, 16GB RAM, 1080p 60fps+",
+    },
+    "Standard": {
+      description: "GTA V, Apex Legends, Helldivers 2",
+      hardwareFocus: "6-8 core, mid GPU, 16GB RAM, 1080p-1440p 60-144fps",
+    },
+    "Heavy": {
+      description: "Cyberpunk 2077, Alan Wake 2, Black Myth Wukong, modded",
+      hardwareFocus: "8-core+, high-end GPU, 32GB RAM, 1440p-4K w/ ray tracing",
+    },
+  },
+  "Browsing & Streaming": {
+    "Light": {
+      description: "Basic web, email, SD/HD video",
+      hardwareFocus: "dual/quad-core, 8GB RAM",
+    },
+    "Standard": {
+      description: "Many tabs, 4K streaming, light multitasking",
+      hardwareFocus: "quad-core+, 8-16GB RAM",
+    },
+    "Heavy": {
+      description: "Heavy multitasking + 4K/HDR + recording",
+      hardwareFocus: "6-core+, 16GB RAM",
+    },
+  },
+  "Documents / Office Work": {
+    "Light": {
+      description: "Word/Excel/browser",
+      hardwareFocus: "dual/quad-core, 8GB RAM",
+    },
+    "Standard": {
+      description: "Heavy spreadsheets/macros, video calls",
+      hardwareFocus: "quad-core+, 16GB RAM",
+    },
+    "Heavy": {
+      description: "Large datasets, Power BI/VBA, multi-monitor + calls",
+      hardwareFocus: "6-core+, 32GB RAM",
+    },
+  },
+  "Video Editing": {
+    "Light": {
+      description: "1080p vlogs/shorts (CapCut, basic Premiere)",
+      hardwareFocus: "6-core, 16GB RAM, entry GPU w/ NVENC",
+    },
+    "Standard": {
+      description: "1080p-4K multi-track, color grading (Premiere/Resolve)",
+      hardwareFocus: "8-core, 32GB RAM, 8GB+ VRAM",
+    },
+    "Heavy": {
+      description: "4K-8K RAW, VFX/compositing (Resolve Studio/Fusion)",
+      hardwareFocus: "12-16 core, 64GB RAM, 16GB+ VRAM",
+    },
+  },
+  "Photo / Graphic Design": {
+    "Light": {
+      description: "Basic retouching, small exports",
+      hardwareFocus: "quad-core, 16GB RAM",
+    },
+    "Standard": {
+      description: "Large PSDs, multi-app workflows",
+      hardwareFocus: "6-8 core, 32GB RAM, mid GPU",
+    },
+    "Heavy": {
+      description: "Huge composites, print production",
+      hardwareFocus: "8-core+, 64GB RAM",
+    },
+  },
+  "3D Modeling or Animation": {
+    "Light": {
+      description: "Blender/SketchUp hobbyist",
+      hardwareFocus: "6-core, 16GB RAM, entry GPU",
+    },
+    "Standard": {
+      description: "Maya/3ds Max professional + mid rendering",
+      hardwareFocus: "8-core, 32GB RAM, 12GB+ VRAM",
+    },
+    "Heavy": {
+      description: "Film-quality rendering, sims (Houdini/UE cinematics)",
+      hardwareFocus: "16-core+, 64-128GB RAM, 24GB+ VRAM",
+    },
+  },
+  "Music Production": {
+    "Light": {
+      description: "Simple DAW, few tracks",
+      hardwareFocus: "quad-core, 16GB RAM",
+    },
+    "Standard": {
+      description: "Multi-track + moderate VSTs (Ableton/FL standard)",
+      hardwareFocus: "6-8 core, 32GB RAM",
+    },
+    "Heavy": {
+      description: "Orchestral libraries, heavy plugin stacking",
+      hardwareFocus: "8-12 core, 64GB RAM, fast NVMe",
+    },
+  },
+  "Programming or Development": {
+    "Light": {
+      description: "Scripting, basic web dev",
+      hardwareFocus: "quad-core, 16GB RAM",
+    },
+    "Standard": {
+      description: "Full-stack + Docker + multiple IDEs",
+      hardwareFocus: "6-8 core, 32GB RAM",
+    },
+    "Heavy": {
+      description: "Large builds, multiple VMs, local ML training",
+      hardwareFocus: "12-core+, 64GB RAM, GPU for CUDA",
+    },
+  },
+  "Streaming / Recording": {
+    "Light": {
+      description: "Occasional 720-1080p single-app capture",
+      hardwareFocus: "6-core, 16GB RAM, GPU w/ NVENC",
+    },
+    "Standard": {
+      description: "Regular 1080p stream + overlays while gaming",
+      hardwareFocus: "8-core, 32GB RAM, mid-high GPU",
+    },
+    "Heavy": {
+      description: "Multi-platform 1440-4K + heavy game + filters",
+      hardwareFocus: "12-core+, 32-64GB RAM, high-end GPU",
+    },
+  },
+  "Simulations / Data Analysis": {
+    "Light": {
+      description: "Small datasets, basic scripts",
+      hardwareFocus: "quad-core, 16GB RAM",
+    },
+    "Standard": {
+      description: "Pandas/R workflows, moderate ML",
+      hardwareFocus: "8-core, 32GB RAM",
+    },
+    "Heavy": {
+      description: "CFD/FEA, big data, deep learning training",
+      hardwareFocus: "16-core+, 64-128GB RAM, CUDA GPU",
+    },
+  },
+};
+
+const COOLING_OPTIONS = [
+  {
+    value: "Auto",
+    label: "Auto (Recommended)",
+    description: "Intelligently decides based on CPU TDP. Uses Air cooling for cool CPUs and Liquid AIO for high-TDP (≥125W) chips.",
+    badge: "Smart Auto",
+  },
+  {
+    value: "Air",
+    label: "Air Cooling",
+    description: "Traditional heatsink & fan. Reliable, quiet, low maintenance, zero pump risk, and high longevity.",
+    badge: "Air Cooler",
+  },
+  {
+    value: "Liquid / AIO",
+    label: "Liquid / AIO",
+    description: "Closed-loop liquid radiator. Superior sustained thermals, high boost clock headroom & sleek aesthetics.",
+    badge: "Liquid AIO",
+  },
+];
+
 const RESOLUTION_OPTIONS = [
   {
     value: "1080p 60Hz (FHD Standard)",
@@ -93,14 +262,25 @@ const RESOLUTION_OPTIONS = [
   },
 ];
 
-const STEPS = ["budget", "primary", "secondary", "resolution"] as const;
+const STEPS = [
+  "budget",
+  "primary",
+  "primary-sub",
+  "secondary",
+  "secondary-sub",
+  "cooling",
+  "resolution",
+] as const;
 type Step = (typeof STEPS)[number];
 
 const STEP_LABELS: Record<Step, string> = {
-  budget: "Budget",
-  primary: "Primary Use",
-  secondary: "Secondary Use",
-  resolution: "Display",
+  budget:        "Budget",
+  primary:       "Primary",
+  "primary-sub": "Sub-Category",
+  secondary:     "Secondary",
+  "secondary-sub":"Sub-Category",
+  cooling:       "Cooling",
+  resolution:    "Display",
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -116,7 +296,10 @@ export default function UserInputPage() {
   const [baseMaxBudget, setBaseMaxBudget] = useState<number | null>(null);
   const [baseFormattedBudget, setBaseFormattedBudget] = useState<string>("");
   const [primaryActivity, setPrimaryActivity] = useState("");
+  const [primarySubcategory, setPrimarySubcategory] = useState<"Light" | "Standard" | "Heavy">("Standard");
   const [secondaryActivity, setSecondaryActivity] = useState("");
+  const [secondarySubcategory, setSecondarySubcategory] = useState<"Light" | "Standard" | "Heavy">("Standard");
+  const [coolingPreference, setCoolingPreference] = useState("Auto");
   const [resolutionTarget, setResolutionTarget] = useState("1080p 144Hz+ (FHD High FPS)");
 
   const [budgetError, setBudgetError] = useState("");
@@ -141,6 +324,33 @@ export default function UserInputPage() {
         setBaseMaxBudget(14037);
         setBaseFormattedBudget("₱14,037");
       });
+  }, []);
+
+  // Restore state when returning from guided-builder
+  useEffect(() => {
+    const returning = sessionStorage.getItem("smartbuild_returning");
+    if (returning === "true") {
+      sessionStorage.removeItem("smartbuild_returning");
+      const stored = sessionStorage.getItem("smartbuild_input");
+      if (stored) {
+        try {
+          const saved = JSON.parse(stored);
+          if (saved.min_budget) setMinBudget(String(saved.min_budget));
+          if (saved.max_budget) setMaxBudget(String(saved.max_budget));
+          if (saved.primary_activity) setPrimaryActivity(saved.primary_activity);
+          if (saved.primary_subcategory) setPrimarySubcategory(saved.primary_subcategory);
+          if (saved.secondary_activity) setSecondaryActivity(saved.secondary_activity ?? "");
+          if (saved.secondary_subcategory) setSecondarySubcategory(saved.secondary_subcategory ?? "Standard");
+          if (saved.cooling_preference) setCoolingPreference(saved.cooling_preference);
+          if (saved.resolution_target) setResolutionTarget(saved.resolution_target);
+          // Jump straight to the last step
+          setStep("resolution");
+        } catch {
+          // silently ignore parse error
+        }
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Focus min input when on budget step
@@ -185,19 +395,28 @@ export default function UserInputPage() {
     transitionTo("primary");
   };
 
+  const buildInputPayload = () => ({
+    min_budget: parseBudget(minBudget),
+    max_budget: parseBudget(maxBudget),
+    primary_activity: primaryActivity,
+    secondary_activity: secondaryActivity || null,
+    primary_subcategory: primarySubcategory,
+    secondary_subcategory: secondaryActivity ? secondarySubcategory : "Standard",
+    cooling_preference: coolingPreference,
+    resolution_target: resolutionTarget,
+  });
+
   const handleSubmit = async () => {
     setLoading(true);
     setError("");
     try {
+      const payload = buildInputPayload();
       const res = await fetch(`${API_BASE}/generate-build`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          min_budget: parseBudget(minBudget),
-          max_budget: parseBudget(maxBudget),
-          primary_activity: primaryActivity,
-          secondary_activity: secondaryActivity || "",
-          resolution_target: resolutionTarget,
+          ...payload,
+          secondary_activity: payload.secondary_activity || "",
         }),
       });
 
@@ -208,16 +427,7 @@ export default function UserInputPage() {
 
       const result = await res.json();
       sessionStorage.setItem("smartbuild_result", JSON.stringify(result));
-      sessionStorage.setItem(
-        "smartbuild_input",
-        JSON.stringify({
-          min_budget: parseBudget(minBudget),
-          max_budget: parseBudget(maxBudget),
-          primary_activity: primaryActivity,
-          secondary_activity: secondaryActivity || null,
-          resolution_target: resolutionTarget,
-        })
-      );
+      sessionStorage.setItem("smartbuild_input", JSON.stringify(payload));
       router.push("/build-result");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -225,8 +435,25 @@ export default function UserInputPage() {
     }
   };
 
-  const stepIndex = STEPS.indexOf(step);
-  const progress = ((stepIndex + 1) / STEPS.length) * 100;
+  const handleCustomBuild = () => {
+    sessionStorage.setItem("smartbuild_input", JSON.stringify(buildInputPayload()));
+    router.push("/guided-builder");
+  };
+
+  const activeSteps = useMemo<Step[]>(() => {
+    return [
+      "budget",
+      "primary",
+      "primary-sub",
+      "secondary",
+      ...(secondaryActivity ? (["secondary-sub"] as const) : []),
+      "cooling",
+      "resolution",
+    ];
+  }, [secondaryActivity]);
+
+  const stepIndex = Math.max(0, activeSteps.indexOf(step));
+  const progress = ((stepIndex + 1) / activeSteps.length) * 100;
 
   const slideClass =
     animState === "exit"
@@ -268,7 +495,7 @@ export default function UserInputPage() {
         {/* Progress */}
         <div className="flex flex-col gap-3">
           <div className="flex justify-between">
-            {STEPS.map((s, i) => (
+            {activeSteps.map((s, i) => (
               <div key={s} className="flex flex-col items-center gap-1">
                 <div
                   className={`h-2 w-2 rounded-full transition-all duration-500 ${
@@ -296,7 +523,7 @@ export default function UserInputPage() {
             />
           </div>
           <p className="text-right text-xs text-white/30">
-            Step {stepIndex + 1} of {STEPS.length}
+            Step {stepIndex + 1} of {activeSteps.length}
           </p>
         </div>
 
@@ -468,6 +695,7 @@ export default function UserInputPage() {
                   );
                 })}
               </div>
+
               <div className="flex items-center justify-between pt-1">
                 <button
                   type="button"
@@ -482,13 +710,89 @@ export default function UserInputPage() {
                   id="primary-next-btn"
                   disabled={!primaryActivity}
                   onClick={() => {
-                    if (primaryActivity) transitionTo("secondary");
+                    if (primaryActivity) transitionTo("primary-sub");
                   }}
                   className={`flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition ${
                     primaryActivity
                       ? "bg-amber-300 text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 cursor-pointer"
                       : "bg-white/10 text-white/30 cursor-not-allowed"
                   }`}
+                >
+                  Continue
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 2B: PRIMARY SUB-CATEGORY ─────────────────── */}
+          {step === "primary-sub" && (
+            <div className="grid gap-5">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="rounded-md border border-amber-400/30 bg-amber-400/10 px-2.5 py-0.5 text-xs text-amber-200 font-medium">
+                    {primaryActivity}
+                  </span>
+                  <span className="text-xs text-white/40">Primary Workload</span>
+                </div>
+                <h2 className="font-heading text-2xl">What is your workload intensity?</h2>
+                <p className="mt-1 text-sm text-white/50">
+                  Select your anticipated usage level. The AI shifts component weighting and tier priority accordingly.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {(["Light", "Standard", "Heavy"] as const).map((tier) => {
+                  const isTierSelected = primarySubcategory === tier;
+                  const subInfo = ACTIVITY_SUBCATEGORIES[primaryActivity]?.[tier];
+                  return (
+                    <button
+                      key={tier}
+                      type="button"
+                      id={`primary-sub-${tier.toLowerCase()}`}
+                      onClick={() => setPrimarySubcategory(tier)}
+                      className={`flex flex-col gap-2 rounded-2xl border p-4 text-left transition ${
+                        isTierSelected
+                          ? "border-amber-400/60 bg-amber-400/15 text-white shadow-[0_0_20px_-8px_rgba(251,191,36,0.3)]"
+                          : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-base text-white">{tier}</span>
+                        {tier === "Standard" && (
+                          <span className="rounded bg-amber-400/20 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                            Default
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-white/60 leading-relaxed min-h-[48px]">
+                        {subInfo?.description ?? "Standard general load"}
+                      </p>
+                      <div className="mt-auto pt-2 border-t border-white/5">
+                        <span className="text-[10px] text-white/40 font-mono block">Hardware Focus:</span>
+                        <p className="text-[11px] text-amber-200/90 font-medium mt-0.5">
+                          {subInfo?.hardwareFocus ?? "Balanced spec"}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => transitionTo("primary")}
+                  className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1.5"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                  Back
+                </button>
+                <button
+                  type="button"
+                  id="primary-sub-next-btn"
+                  onClick={() => transitionTo("secondary")}
+                  className="flex items-center gap-2 rounded-full bg-amber-300 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition"
                 >
                   Continue
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -571,10 +875,11 @@ export default function UserInputPage() {
                   );
                 })}
               </div>
+
               <div className="flex items-center justify-between pt-1">
                 <button
                   type="button"
-                  onClick={() => transitionTo("primary")}
+                  onClick={() => transitionTo("primary-sub")}
                   className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1.5"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -583,6 +888,158 @@ export default function UserInputPage() {
                 <button
                   type="button"
                   id="secondary-next-btn"
+                  onClick={() => {
+                    if (secondaryActivity) {
+                      transitionTo("secondary-sub");
+                    } else {
+                      transitionTo("cooling");
+                    }
+                  }}
+                  className="flex items-center gap-2 rounded-full bg-amber-300 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition"
+                >
+                  Continue
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 3B: SECONDARY SUB-CATEGORY ───────────────── */}
+          {step === "secondary-sub" && (
+            <div className="grid gap-5">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="rounded-md border border-blue-400/30 bg-blue-400/10 px-2.5 py-0.5 text-xs text-blue-200 font-medium">
+                    {secondaryActivity}
+                  </span>
+                  <span className="text-xs text-white/40">Secondary Workload</span>
+                </div>
+                <h2 className="font-heading text-2xl">What is your secondary intensity?</h2>
+                <p className="mt-1 text-sm text-white/50">
+                  Select your expected load level for {secondaryActivity.toLowerCase()}. The recommender blends this at 30% weight alongside your primary workload.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {(["Light", "Standard", "Heavy"] as const).map((tier) => {
+                  const isTierSelected = secondarySubcategory === tier;
+                  const subInfo = ACTIVITY_SUBCATEGORIES[secondaryActivity]?.[tier];
+                  return (
+                    <button
+                      key={tier}
+                      type="button"
+                      id={`secondary-sub-${tier.toLowerCase()}`}
+                      onClick={() => setSecondarySubcategory(tier)}
+                      className={`flex flex-col gap-2 rounded-2xl border p-4 text-left transition ${
+                        isTierSelected
+                          ? "border-blue-400/60 bg-blue-400/15 text-white shadow-[0_0_20px_-8px_rgba(59,130,246,0.3)]"
+                          : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-base text-white">{tier}</span>
+                        {tier === "Standard" && (
+                          <span className="rounded bg-blue-400/20 px-2 py-0.5 text-[10px] font-medium text-blue-300">
+                            Default
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-white/60 leading-relaxed min-h-[48px]">
+                        {subInfo?.description ?? "Standard general load"}
+                      </p>
+                      <div className="mt-auto pt-2 border-t border-white/5">
+                        <span className="text-[10px] text-white/40 font-mono block">Hardware Focus:</span>
+                        <p className="text-[11px] text-blue-200/90 font-medium mt-0.5">
+                          {subInfo?.hardwareFocus ?? "Balanced spec"}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => transitionTo("secondary")}
+                  className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1.5"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                  Back
+                </button>
+                <button
+                  type="button"
+                  id="secondary-sub-next-btn"
+                  onClick={() => transitionTo("cooling")}
+                  className="flex items-center gap-2 rounded-full bg-amber-300 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition"
+                >
+                  Continue
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 4: COOLING PREFERENCE ─────────────────────── */}
+          {step === "cooling" && (
+            <div className="grid gap-5">
+              <div>
+                <h2 className="font-heading text-2xl">Preferred CPU Cooling Type</h2>
+                <p className="mt-1 text-sm text-white/50">
+                  Select your thermal solution. The AI will prioritize your choice while ensuring sustained processor performance and case clearance.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {COOLING_OPTIONS.map((opt) => {
+                  const isSelected = coolingPreference === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      id={`cooling-${opt.value.toLowerCase().replace(/[\s\/]/g, "-")}`}
+                      onClick={() => setCoolingPreference(opt.value)}
+                      className={`flex flex-col justify-between gap-3 rounded-2xl border p-4 sm:p-5 text-left transition min-h-[145px] ${
+                        isSelected
+                          ? "border-amber-400/60 bg-amber-400/15 text-white shadow-[0_0_20px_-8px_rgba(251,191,36,0.3)] ring-1 ring-amber-400/30"
+                          : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-white text-sm sm:text-base">{opt.label}</span>
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full shrink-0 transition ${
+                              isSelected
+                                ? "bg-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+                                : "bg-white/20"
+                            }`}
+                          />
+                        </div>
+                        <p className="mt-2 text-xs text-white/50 leading-relaxed">{opt.description}</p>
+                      </div>
+                      <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+                        <span className="text-[10px] text-white/40 font-mono">Thermal Profile:</span>
+                        <span className="rounded-md border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-200 font-medium">
+                          {opt.badge}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => transitionTo(secondaryActivity ? "secondary-sub" : "secondary")}
+                  className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1.5"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                  Back
+                </button>
+                <button
+                  type="button"
+                  id="cooling-next-btn"
                   onClick={() => transitionTo("resolution")}
                   className="flex items-center gap-2 rounded-full bg-amber-300 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition"
                 >
@@ -593,7 +1050,7 @@ export default function UserInputPage() {
             </div>
           )}
 
-          {/* ── STEP 4: RESOLUTION & REFRESH RATE ───────────── */}
+          {/* ── STEP 5: RESOLUTION & REFRESH RATE ───────────── */}
           {step === "resolution" && (
             <div className="grid gap-5">
               <div>
@@ -626,84 +1083,51 @@ export default function UserInputPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-1">
-                <button
-                  type="button"
-                  onClick={() => transitionTo("secondary")}
-                  className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1.5"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                  Back
-                </button>
-                <button
-                  id="generate-build-btn"
-                  type="button"
-                  disabled={loading}
-                  onClick={handleSubmit}
-                  className={`flex items-center gap-2 rounded-full px-8 py-3 text-sm font-semibold transition shadow-lg ${
-                    !loading
-                      ? "bg-amber-300 text-slate-950 shadow-amber-400/30 hover:bg-amber-200 cursor-pointer"
-                      : "bg-white/10 text-white/30 cursor-not-allowed"
-                  }`}
-                >
-                  {loading ? (
-                    <>
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      Generate Build
+              <div className="flex flex-col gap-3 pt-1">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => transitionTo("cooling")}
+                    className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1.5"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    Back
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      id="generate-build-btn"
+                      type="button"
+                      disabled={loading}
+                      onClick={handleSubmit}
+                      className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-xs font-medium text-white/60 transition hover:bg-white/10 hover:text-white cursor-pointer"
+                    >
+                      {loading ? (
+                        <>
+                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/50 border-t-transparent" />
+                          Auto-building...
+                        </>
+                      ) : (
+                        "Quick 1-Click Build"
+                      )}
+                    </button>
+                    <button
+                      id="custom-build-btn"
+                      type="button"
+                      onClick={handleCustomBuild}
+                      className="flex items-center gap-2 rounded-full bg-amber-300 px-7 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-amber-400/30 transition hover:bg-amber-200 cursor-pointer"
+                    >
+                      Start Component Selection
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                    </>
-                  )}
-                </button>
+                    </button>
+                  </div>
+                </div>
+                <p className="text-right text-[10px] text-white/30">Select from 3 tailored options per component category with specs and difference comparisons</p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Info Cards */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          {[
-            {
-              title: "AI-Powered",
-              body: "Random Forest model predicts optimal component tiers based on your exact requirements.",
-              accent: "amber",
-            },
-            {
-              title: "Compatibility First",
-              body: "Every build is validated for socket match, DDR gen, PSU headroom, and case clearance.",
-              accent: "blue",
-            },
-            {
-              title: "Budget-Aware",
-              body: "Component allocation shifts dynamically to honor your specific usage priorities.",
-              accent: "emerald",
-            },
-          ].map((card) => (
-            <div
-              key={card.title}
-              className="rounded-3xl border border-white/10 bg-white/5 p-5"
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    card.accent === "amber"
-                      ? "bg-amber-300"
-                      : card.accent === "blue"
-                      ? "bg-blue-300"
-                      : "bg-emerald-300"
-                  }`}
-                />
-                <h3 className="font-heading text-base">{card.title}</h3>
-              </div>
-              <p className="mt-2 text-xs leading-5 text-white/60">
-                {card.body}
-              </p>
-            </div>
-          ))}
-        </div>
+
       </main>
     </div>
   );

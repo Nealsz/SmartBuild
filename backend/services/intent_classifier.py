@@ -4,23 +4,25 @@ Converts user inputs into the 11-feature vector the RF model expects.
 No ML logic here — pure feature engineering.
 """
 
-from config import ACTIVITY_WEIGHTS, RESOLUTION_TARGET_WEIGHTS
+from config import ACTIVITY_WEIGHTS, RESOLUTION_TARGET_WEIGHTS, get_activity_weights
 
 
 def compute_intent(
     primary: str,
     secondary: str | None = None,
     resolution_target: str = "1080p 144Hz+ (FHD High FPS)",
+    primary_subcategory: str | None = None,
+    secondary_subcategory: str | None = None,
 ) -> dict[str, float]:
     """
-    Blend primary (70%) and secondary (30%) activity dimension weights,
+    Blend primary (70%) and secondary (30%) activity dimension weights (accounting for subcategories),
     then apply resolution & refresh rate scaling boosts to VRAM, GPU compute, and CPU single core.
     """
     dims = ["cpu_single", "cpu_multi", "gpu_compute", "vram", "ram_cap", "storage_spd"]
-    p = ACTIVITY_WEIGHTS[primary]
+    p = get_activity_weights(primary, primary_subcategory)
 
     if secondary:
-        s = ACTIVITY_WEIGHTS[secondary]
+        s = get_activity_weights(secondary, secondary_subcategory)
         base_intent = {d: p[d] * 0.70 + s[d] * 0.30 for d in dims}
     else:
         base_intent = {d: p[d] for d in dims}
@@ -44,6 +46,8 @@ def build_feature_vector(
     primary: str,
     secondary: str | None,
     resolution_target: str,
+    primary_subcategory: str | None = None,
+    secondary_subcategory: str | None = None,
 ) -> dict[str, float]:
     """
     Produces the exact 11-feature dict the RF model was trained on.
@@ -57,7 +61,11 @@ def build_feature_vector(
       intent_*            — 6 hardware demand dimension weights from activity mapping
       longevity_mult      — tier multiplier from resolution selection (0.85–1.40)
     """
-    intent = compute_intent(primary, secondary, resolution_target)
+    intent = compute_intent(
+        primary, secondary, resolution_target,
+        primary_subcategory=primary_subcategory,
+        secondary_subcategory=secondary_subcategory,
+    )
 
     budget_mid  = (budget_min + budget_max) / 2
     budget_norm = budget_mid / 200_000

@@ -1,12 +1,22 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from schemas.user_input import UserInput
-from config import ACTIVITY_WEIGHTS, RESOLUTION_TARGET_WEIGHTS
+from schemas.user_input import UserInput, CategoryOptionsRequest, FinalizeBuildRequest
+from config import (
+    ACTIVITY_WEIGHTS,
+    RESOLUTION_TARGET_WEIGHTS,
+    ACTIVITY_SUBCATEGORIES,
+    VALID_SUBCATEGORIES,
+    VALID_COOLING_PREFERENCES,
+)
 from services.recommender import (
     generate_build as recommender_generate_build,
     get_cheapest_compatible_build,
     trigger_recalculate_min_budget,
+)
+from services.builder_service import (
+    get_builder_options,
+    finalize_custom_build,
 )
 from routers.admin import router as admin_router
 from routers.tickets import router as tickets_router, cleanup_expired_tickets
@@ -84,6 +94,21 @@ def get_activities():
     return {"activities": VALID_ACTIVITIES}
 
 
+@app.get("/subcategories")
+def get_subcategories():
+    """Return the subcategories (Light, Standard, Heavy) and detailed descriptions."""
+    return {
+        "subcategories": VALID_SUBCATEGORIES,
+        "activity_subcategories": ACTIVITY_SUBCATEGORIES,
+    }
+
+
+@app.get("/cooling-options")
+def get_cooling_options():
+    """Return the list of valid CPU cooling preferences."""
+    return {"cooling_options": VALID_COOLING_PREFERENCES}
+
+
 @app.get("/resolution-options")
 def get_resolution_options():
     """Return the list of valid resolution & refresh rate target options."""
@@ -138,12 +163,77 @@ async def supabase_database_webhook(
 @app.post("/generate-build")
 def generate_build(user: UserInput):
     try:
-        return recommender_generate_build(
+        res = recommender_generate_build(
             budget_min=user.min_budget,
             budget_max=user.max_budget,
             primary_activity=user.primary_activity,
             secondary_activity=user.secondary_activity,
             resolution_target=user.resolution_target,
+            primary_subcategory=user.primary_subcategory,
+            secondary_subcategory=user.secondary_subcategory,
+            cooling_preference=user.cooling_preference,
+        )
+        try:
+            from services.builder_service import generate_side_builds
+            res["comparison_builds"] = generate_side_builds(
+                min_budget=user.min_budget,
+                max_budget=user.max_budget,
+                primary_activity=user.primary_activity,
+                primary_subcategory=user.primary_subcategory,
+                secondary_activity=user.secondary_activity,
+                secondary_subcategory=user.secondary_subcategory,
+                cooling_preference=user.cooling_preference,
+                resolution_target=user.resolution_target,
+                user_build_res=res,
+            )
+        except Exception as side_err:
+            import logging
+            logging.getLogger(__name__).warning(f"Could not generate side builds: {side_err}")
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@app.post("/builder/category-options")
+def get_category_options_endpoint(req: CategoryOptionsRequest):
+    """
+    Returns 3 compatible component candidates (Value, AI Recommended, Performance)
+    for the specified category, complete with formatted specs and difference analysis.
+    """
+    try:
+        return get_builder_options(
+            min_budget=req.min_budget,
+            max_budget=req.max_budget,
+            primary_activity=req.primary_activity,
+            primary_subcategory=req.primary_subcategory,
+            secondary_activity=req.secondary_activity,
+            secondary_subcategory=req.secondary_subcategory,
+            cooling_preference=req.cooling_preference,
+            resolution_target=req.resolution_target,
+            category=req.category,
+            selected_components=req.selected_components or {},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@app.post("/builder/finalize-build")
+def finalize_build_endpoint(req: FinalizeBuildRequest):
+    """
+    Validates the 9 components chosen by the user, runs full 7-rule compatibility check,
+    computes budget utilization, and scores system effectiveness parameters.
+    """
+    try:
+        return finalize_custom_build(
+            min_budget=req.min_budget,
+            max_budget=req.max_budget,
+            primary_activity=req.primary_activity,
+            primary_subcategory=req.primary_subcategory,
+            secondary_activity=req.secondary_activity,
+            secondary_subcategory=req.secondary_subcategory,
+            cooling_preference=req.cooling_preference,
+            resolution_target=req.resolution_target,
+            selected_components=req.selected_components,
         )
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e))

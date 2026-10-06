@@ -217,7 +217,7 @@ export default function StoreTicketModal({
               {/* Warning */}
               <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-[11px] text-amber-200">
                 <div className="flex items-start gap-2.5">
-                  <div>
+                  <div className="w-full">
                     <p className="font-semibold text-amber-100 mb-1.5">Before you proceed:</p>
                     <ul className="space-y-1.5 leading-relaxed text-amber-200/85 list-disc list-inside">
                       <li>Your ticket is valid for <strong>30 days</strong> from generation.</li>
@@ -225,8 +225,20 @@ export default function StoreTicketModal({
                         If you do not visit within 30 days, the ticket and your saved build
                         will be <strong>permanently deleted</strong>.
                       </li>
-                      <li>Keep your ticket code safe — it's the only thing you need at the counter.</li>
+                      <li>Keep your ticket code safe — it&apos;s the only thing you need at the counter.</li>
                     </ul>
+                    {/* Store address */}
+                    <div className="mt-3 pt-3 border-t border-amber-400/20 flex items-start gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-300 shrink-0 mt-0.5">
+                        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                        <circle cx="12" cy="10" r="3"/>
+                      </svg>
+                      <div>
+                        <p className="font-semibold text-amber-100 text-[11px]">Visit us at Brandcom IT Computer Shop</p>
+                        <p className="text-amber-200/75 mt-0.5">675 Rizal Avenue West, Tapinac, Olongapo, Philippines 2200</p>
+                        <p className="text-amber-200/55 italic mt-0.5">Show your ticket code at the counter to reserve or have your build assembled.</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -372,6 +384,18 @@ export default function StoreTicketModal({
                 <p className="mt-4 text-[10px] text-white/30 leading-relaxed">
                   This ticket is valid for 30 days. Not redeemed within 30 days? It will be permanently removed.
                 </p>
+                {/* Store address — printed on ticket */}
+                <div className="mt-4 pt-4 border-t border-white/10 flex items-start gap-2 text-left">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400/70 shrink-0 mt-0.5">
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  <div>
+                    <p className="text-[10px] font-bold text-amber-200/80 tracking-wide">Brandcom IT Computer Shop</p>
+                    <p className="text-[10px] text-white/45 mt-0.5">675 Rizal Avenue West, Tapinac, Olongapo, Philippines 2200</p>
+                    <p className="text-[10px] text-white/35 italic mt-0.5">Present this ticket at the counter to reserve or have your build assembled within 30 days.</p>
+                  </div>
+                </div>
               </div>
 
               {error && (

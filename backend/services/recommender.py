@@ -341,11 +341,14 @@ def _serialise_v3_build(picks: dict, alternates: dict) -> dict:
 
 # ── Main entry point ───────────────────────────────────────────────────────────
 def generate_build(
-    budget_min:         int,
-    budget_max:         int,
-    primary_activity:   str,
-    secondary_activity: str | None,
-    resolution_target:  str,
+    budget_min:             int,
+    budget_max:             int,
+    primary_activity:       str,
+    secondary_activity:     str | None,
+    resolution_target:      str,
+    primary_subcategory:   str | None = None,
+    secondary_subcategory: str | None = None,
+    cooling_preference:     str | None = None,
 ) -> dict:
     start_time = time.time()
 
@@ -357,26 +360,37 @@ def generate_build(
         budget_min, budget_max,
         primary_activity, secondary_activity,
         resolution_target,
+        primary_subcategory=primary_subcategory,
+        secondary_subcategory=secondary_subcategory,
     )
 
     # Step 2 — RF prediction + Step 3 — Component selection
-    # Route to v3 allocation-share pipeline or legacy tier-classifier pipeline.
-    intent = compute_intent(primary_activity, secondary_activity, resolution_target)
+    # Route to v4/v3 allocation-share pipeline or legacy tier-classifier pipeline.
+    intent = compute_intent(
+        primary_activity, secondary_activity, resolution_target,
+        primary_subcategory=primary_subcategory,
+        secondary_subcategory=secondary_subcategory,
+    )
 
     if _is_v3_model(artifact):
-        from model.train_model_v3 import (
-            select_build as v3_select_build,
-            predict_allocation as v3_predict_allocation,
+        from model.train_model_v4 import (
+            select_build as v4_select_build,
+            predict_allocation as v4_predict_allocation,
         )
         _tiers_placeholder, confidences = predict_tiers(features)
-        shares = v3_predict_allocation(
-            primary_activity, secondary_activity, resolution_target
+        shares = v4_predict_allocation(
+            primary_activity, secondary_activity, resolution_target,
+            primary_subcategory=primary_subcategory,
+            secondary_subcategory=secondary_subcategory,
         )
-        picks, alternates, _total, _ = v3_select_build(
+        picks, alternates, _total, _ = v4_select_build(
             budget_min, budget_max,
             primary_activity, secondary_activity,
             resolution_target, dfs,
             shares=shares,
+            primary_subcategory=primary_subcategory,
+            secondary_subcategory=secondary_subcategory,
+            cooling_preference=cooling_preference,
         )
         build = _serialise_v3_build(picks, alternates)
         # Derive real tiers from the actual selected component prices

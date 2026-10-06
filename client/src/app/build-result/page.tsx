@@ -24,6 +24,17 @@ type Compatibility = {
 type ComponentData = Record<string, unknown> & {
   name?: string;
   price?: number;
+  size?: number | null;
+  mismatch_advisory?: {
+    has_mismatch?: boolean;
+    type?: string;
+    reason?: string;
+    cpu_tdp?: number;
+    override_allowed?: boolean;
+    recommended_fix_type?: string;
+  };
+  is_recommended_fix?: boolean;
+  fix_reason?: string;
 };
 
 type EvalMetric = {
@@ -52,6 +63,36 @@ type ComponentGroup = {
   alternatives?: ComponentData[];
 };
 
+type ComparisonBuildItem = {
+  id: "value" | "custom" | "performance";
+  title: string;
+  tagline: string;
+  badge: string;
+  is_user_build?: boolean;
+  build: Record<string, ComponentGroup | ComponentData | null>;
+  total: number;
+  tiers?: Record<string, string>;
+  budget_fit?: boolean;
+  compatibility?: Compatibility;
+  evaluation?: Evaluation;
+};
+
+type ComparisonSummaryColumn = {
+  id: "value" | "custom" | "performance";
+  title: string;
+  color: string;
+  summary: string;
+  strengths: string[];
+  ideal_for: string;
+};
+
+type ComparisonSummary = {
+  headline: string;
+  intro: string;
+  columns: ComparisonSummaryColumn[];
+  verdict: string;
+};
+
 type BuildResult = {
   tiers: Record<string, string>;
   build: Record<string, ComponentGroup | ComponentData | null>;
@@ -59,6 +100,13 @@ type BuildResult = {
   budget_fit: boolean;
   compatibility: Compatibility;
   evaluation?: Evaluation;
+  is_custom_build?: boolean;
+  comparison_builds?: {
+    value?: ComparisonBuildItem;
+    custom?: ComparisonBuildItem;
+    performance?: ComparisonBuildItem;
+    comparison_summary?: ComparisonSummary;
+  };
 };
 
 type UserInputSummary = {
@@ -66,6 +114,9 @@ type UserInputSummary = {
   max_budget: number;
   primary_activity: string;
   secondary_activity: string | null;
+  primary_subcategory?: string;
+  secondary_subcategory?: string;
+  cooling_preference?: string;
   resolution_target: string;
 };
 
@@ -104,6 +155,78 @@ const TIER_COLORS: Record<string, string> = {
 };
 
 const PCIE5_CHIPSETS = ["Z790", "Z890", "X870", "X670", "TRX"];
+
+const COMPARE_CATEGORIES = [
+  { key: "cpu", label: "Processor (CPU)" },
+  { key: "gpu", label: "Graphics (GPU)" },
+  { key: "ram", label: "Memory (RAM)" },
+  { key: "motherboard", label: "Motherboard" },
+  { key: "storage", label: "Storage (SSD)" },
+  { key: "psu", label: "Power Supply" },
+  { key: "case", label: "Computer Case" },
+  { key: "cpu_cooler", label: "CPU Cooler" },
+  { key: "case_fan", label: "Case Fans" },
+];
+
+function extractComp(
+  buildObj: Record<string, ComponentGroup | ComponentData | null> | undefined,
+  cat: string
+): ComponentData | null {
+  if (!buildObj || !buildObj[cat]) return null;
+  const entry = buildObj[cat];
+  if (entry && typeof entry === "object" && "main" in entry) {
+    return (entry as ComponentGroup).main;
+  }
+  return entry as ComponentData;
+}
+
+function getCompSpecSnippet(cat: string, comp: ComponentData | null): string {
+  if (!comp) return "—";
+  if (cat === "cpu") {
+    const cores = comp.core_count ? `${comp.core_count}C` : "";
+    const threads = comp.thread_count ? `/${comp.thread_count}T` : "";
+    const clock = comp.boost_clock ? ` • ${comp.boost_clock}GHz` : comp.core_clock ? ` • ${comp.core_clock}GHz` : "";
+    return `${cores}${threads}${clock}` || String(comp.socket ?? "");
+  }
+  if (cat === "gpu") {
+    const vram = comp.memory ? `${comp.memory}GB VRAM` : "";
+    const chip = comp.chipset ? ` • ${comp.chipset}` : "";
+    return `${vram}${chip}` || "Discrete Graphics";
+  }
+  if (cat === "ram") {
+    const cap = comp.total_capacity_gb ? `${comp.total_capacity_gb}GB` : "";
+    const gen = comp.ddr_gen ? ` ${comp.ddr_gen}` : "";
+    const spd = comp.speed_mhz ? ` • ${comp.speed_mhz}MHz` : "";
+    return `${cap}${gen}${spd}` || "System Memory";
+  }
+  if (cat === "storage") {
+    const cap = comp.capacity ? (Number(comp.capacity) >= 1000 ? `${(Number(comp.capacity) / 1000).toFixed(0)}TB` : `${comp.capacity}GB`) : "";
+    const type = comp.type ? ` • ${comp.type}` : "";
+    return `${cap}${type}` || "High-Speed Storage";
+  }
+  if (cat === "psu") {
+    const watt = comp.wattage ? `${comp.wattage}W` : "";
+    const eff = comp.efficiency_rating ? ` • ${comp.efficiency_rating}` : "";
+    return `${watt}${eff}` || "ATX Power Supply";
+  }
+  if (cat === "motherboard") {
+    const sock = comp.socket ? `${comp.socket}` : "";
+    const ff = comp.form_factor ? ` • ${comp.form_factor}` : "";
+    return `${sock}${ff}` || "System Motherboard";
+  }
+  if (cat === "case") {
+    return String(comp.type ?? comp.form_factor ?? "Mid Tower Chassis");
+  }
+  if (cat === "cpu_cooler") {
+    const size = comp.size ? `${comp.size}mm` : "";
+    const isLiquid = String(comp.name ?? "").toUpperCase().includes("LIQUID");
+    return `${size} ${isLiquid ? "Liquid AIO" : "Air Cooler"}`.trim();
+  }
+  if (cat === "case_fan") {
+    return comp.airflow_cfm ? `${comp.airflow_cfm} CFM Airflow` : "120mm Chassis Fan";
+  }
+  return "";
+}
 
 function runCompatibilityCheck(
   buildMains: Record<string, ComponentData | null>
@@ -390,12 +513,36 @@ export default function BuildResultPage() {
     }
   }, []);
 
+  const [activeVariant, setActiveVariant] = useState<"value" | "custom" | "performance">("custom");
+
   useEffect(() => {
     const raw = sessionStorage.getItem("smartbuild_result");
     const rawInput = sessionStorage.getItem("smartbuild_input");
     if (raw) setResult(JSON.parse(raw));
     if (rawInput) setInput(JSON.parse(rawInput));
   }, []);
+
+  const handleSelectBuildVariant = (variantKey: "value" | "custom" | "performance") => {
+    if (!result?.comparison_builds) return;
+    const target = result.comparison_builds[variantKey];
+    if (!target || !target.build) return;
+
+    setActiveVariant(variantKey);
+
+    const updatedResult: BuildResult = {
+      ...result,
+      tiers: target.tiers ?? result.tiers,
+      build: target.build,
+      total: target.total,
+      budget_fit: target.budget_fit ?? result.budget_fit,
+      compatibility: target.compatibility ?? result.compatibility,
+      evaluation: target.evaluation ?? result.evaluation,
+      is_custom_build: variantKey === "custom",
+    };
+
+    setResult(updatedResult);
+    sessionStorage.setItem("smartbuild_result", JSON.stringify(updatedResult));
+  };
 
   const handleSwitchComponent = (categoryKey: string, altIndex: number) => {
     if (!result) return;
@@ -494,6 +641,21 @@ export default function BuildResultPage() {
       };
     }
 
+    let updatedComparisonBuilds = result.comparison_builds;
+    if (updatedComparisonBuilds && updatedComparisonBuilds[activeVariant]) {
+      updatedComparisonBuilds = {
+        ...updatedComparisonBuilds,
+        [activeVariant]: {
+          ...updatedComparisonBuilds[activeVariant],
+          build: updatedBuild,
+          total: Math.round(newTotal * 100) / 100,
+          budget_fit: budgetWithin,
+          compatibility: updatedCompat,
+          evaluation: updatedEval,
+        },
+      };
+    }
+
     const updatedResult: BuildResult = {
       ...result,
       build: updatedBuild,
@@ -501,6 +663,7 @@ export default function BuildResultPage() {
       budget_fit: budgetWithin,
       compatibility: updatedCompat,
       evaluation: updatedEval,
+      comparison_builds: updatedComparisonBuilds,
     };
 
     setResult(updatedResult);
@@ -550,14 +713,6 @@ export default function BuildResultPage() {
       <main className="relative mx-auto flex w-full max-w-6xl flex-col gap-8 sm:gap-10 px-4 sm:px-6 md:px-8 pb-24 pt-8 sm:pt-12">
         {/* Header */}
         <header className="flex flex-col gap-4">
-          <Link
-            href="/user-input"
-            className="flex items-center gap-2 text-xs text-white/50 transition hover:text-white/80 w-fit"
-            data-html2canvas-ignore="true"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-            Back to Input
-          </Link>
           <div className="flex items-center gap-3 text-xs uppercase tracking-[0.35em] text-emerald-200/80">
             <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
             Build Result
@@ -581,36 +736,410 @@ export default function BuildResultPage() {
               </span>
             </div>
             <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                { label: "Budget Range", value: `${fmt(input.min_budget)} – ${fmt(input.max_budget)}` },
-                { label: "Primary Activity", value: input.primary_activity },
-                { label: "Secondary Activity", value: input.secondary_activity ?? "None" },
-                { label: "Target Display", value: input.resolution_target },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5"
-                >
-                  <span className="text-white/50">{item.label}</span>
-                  <span className="text-white font-medium break-words text-left sm:text-right w-full sm:w-auto">{item.value}</span>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5">
+                <span className="text-white/50">Budget Range</span>
+                <span className="text-white font-medium break-words text-left sm:text-right w-full sm:w-auto">
+                  {fmt(input.min_budget)} – {fmt(input.max_budget)}
+                </span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5">
+                <span className="text-white/50">Primary Activity</span>
+                <div className="flex items-center gap-1.5 flex-wrap sm:justify-end">
+                  <span className="text-white font-medium">{input.primary_activity}</span>
+                  {input.primary_subcategory && (
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                        input.primary_subcategory === "Heavy"
+                          ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
+                          : input.primary_subcategory === "Light"
+                          ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+                          : "border-blue-400/40 bg-blue-400/10 text-blue-300"
+                      }`}
+                    >
+                      {input.primary_subcategory}
+                    </span>
+                  )}
                 </div>
-              ))}
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5">
+                <span className="text-white/50">Secondary Activity</span>
+                <div className="flex items-center gap-1.5 flex-wrap sm:justify-end">
+                  <span className="text-white font-medium">
+                    {input.secondary_activity ?? "None"}
+                  </span>
+                  {input.secondary_activity && input.secondary_subcategory && (
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                        input.secondary_subcategory === "Heavy"
+                          ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
+                          : input.secondary_subcategory === "Light"
+                          ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+                          : "border-blue-400/40 bg-blue-400/10 text-blue-300"
+                      }`}
+                    >
+                      {input.secondary_subcategory}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5">
+                <span className="text-white/50">Cooling Preference</span>
+                <span className="text-white font-medium break-words text-left sm:text-right w-full sm:w-auto">
+                  {input.cooling_preference ?? "Auto (AI-optimized)"}
+                </span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5">
+                <span className="text-white/50">Target Display</span>
+                <span className="text-white font-medium break-words text-left sm:text-right w-full sm:w-auto">
+                  {input.resolution_target}
+                </span>
+              </div>
             </div>
           </div>
         )}
 
-        {/* ─── System Evaluation ────────────────────────────── */}
+        {/* ─── Apple-Style 3-Build Comparison Matrix ────────────────────── */}
+        {result.comparison_builds && (() => {
+          const compBuilds = result.comparison_builds;
+          const valB = compBuilds.value;
+          const custB = compBuilds.custom;
+          const perfB = compBuilds.performance;
+
+          if (!valB || !custB || !perfB) return null;
+
+          const compColorMap: Record<string, { border: string; bg: string; text: string; accent: string; badgeBg: string; dot: string }> = {
+            emerald: { border: "border-emerald-400/25", bg: "bg-emerald-400/[0.04]", text: "text-emerald-300", accent: "text-emerald-200", badgeBg: "bg-emerald-400/10 border-emerald-400/30", dot: "bg-emerald-400" },
+            amber:   { border: "border-amber-400/25",   bg: "bg-amber-400/[0.04]",   text: "text-amber-300",   accent: "text-amber-200",   badgeBg: "bg-amber-400/10 border-amber-400/30",   dot: "bg-amber-400"   },
+            purple:  { border: "border-purple-400/25",  bg: "bg-purple-400/[0.04]",  text: "text-purple-300",  accent: "text-purple-200",  badgeBg: "bg-purple-400/10 border-purple-400/30",  dot: "bg-purple-400"  },
+          };
+
+          return (
+            <section className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-8 backdrop-blur shadow-[0_30px_120px_-80px_rgba(251,191,36,0.35)] flex flex-col gap-8">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-amber-200/80">
+                    <span className="h-2 w-2 rounded-full bg-amber-300 animate-pulse" />
+                    Triple Build Comparison
+                  </div>
+                  <h2 className="font-heading text-2xl sm:text-3xl text-white mt-1">
+                    Compare PC Configurations
+                  </h2>
+                  <p className="text-sm text-white/50 mt-1 max-w-xl">
+                    Review your custom build placed in the center, flanked by AI-recommended Value and High-Performance alternatives.
+                  </p>
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/5 px-3.5 py-1 text-xs text-white/40">
+                  3 Configurations Analyzed
+                </div>
+              </div>
+
+              {/* 3 Columns Top Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
+                {/* 1. Value Build (Left) */}
+                <div className={`relative flex flex-col justify-between rounded-2xl border p-5 sm:p-6 transition ${
+                  activeVariant === "value"
+                    ? "border-emerald-400/60 bg-emerald-400/10 shadow-[0_0_30px_-8px_rgba(52,211,153,0.3)] ring-1 ring-emerald-400/40"
+                    : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
+                }`}>
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                        Value Alternative
+                      </span>
+                      {valB.total > 0 && custB.total > 0 && custB.total > valB.total && (
+                        <span className="text-[11px] font-semibold text-emerald-300/90">
+                          Save {fmt(custB.total - valB.total)}
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="mt-3 text-lg font-bold text-white">{valB.title}</h3>
+                    <p className="text-xs text-white/40">{valB.tagline}</p>
+
+                    <div className="my-5 flex justify-center">
+                      <div className="flex h-20 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400/80">
+                          <rect width="16" height="20" x="4" y="2" rx="2" />
+                          <path d="M8 6h.01" />
+                          <path d="M16 6h.01" />
+                          <path d="M12 18h.01" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div className="text-center">
+                      <p className="text-xs text-white/40 uppercase tracking-wider font-medium">Estimated Total</p>
+                      <p className="text-2xl font-bold text-white mt-0.5">{fmt(valB.total)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectBuildVariant("value")}
+                      className={`w-full rounded-xl py-2.5 text-xs font-semibold transition cursor-pointer ${
+                        activeVariant === "value"
+                          ? "bg-emerald-400 text-slate-950 font-bold shadow-lg shadow-emerald-400/20"
+                          : "border border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      {activeVariant === "value" ? "Active Selected Build" : "Switch to this Build"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Your Custom Build (Center - HIGHLIGHTED!) */}
+                <div className={`relative flex flex-col justify-between rounded-2xl border p-5 sm:p-6 transition ${
+                  activeVariant === "custom"
+                    ? "border-amber-400/60 bg-amber-400/10 shadow-[0_0_35px_-8px_rgba(251,191,36,0.35)] ring-2 ring-amber-400/50"
+                    : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
+                }`}>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-amber-300/40 bg-amber-300 px-3 py-0.5 text-[10px] font-bold text-slate-950 shadow-md">
+                    YOUR CUSTOM SELECTION
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mt-1">
+                      <span className="inline-flex rounded-full border border-amber-400/40 bg-amber-400/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-200">
+                        User-Configured
+                      </span>
+                      <span className="text-[11px] font-semibold text-amber-300/90">
+                        Baseline Choice
+                      </span>
+                    </div>
+
+                    <h3 className="mt-3 text-lg font-bold text-white">{custB.title}</h3>
+                    <p className="text-xs text-white/40">{custB.tagline}</p>
+
+                    <div className="my-5 flex justify-center">
+                      <div className="flex h-20 w-16 items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-400/10 p-2 shadow-[0_0_20px_-4px_rgba(251,191,36,0.3)]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-amber-300">
+                          <rect width="16" height="20" x="4" y="2" rx="2" />
+                          <path d="M8 6h.01" />
+                          <path d="M16 6h.01" />
+                          <path d="M12 18h.01" />
+                          <line x1="8" y1="12" x2="16" y2="12" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div className="text-center">
+                      <p className="text-xs text-white/40 uppercase tracking-wider font-medium">Estimated Total</p>
+                      <p className="text-2xl font-bold text-amber-200 mt-0.5">{fmt(custB.total)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectBuildVariant("custom")}
+                      className={`w-full rounded-xl py-2.5 text-xs font-semibold transition cursor-pointer ${
+                        activeVariant === "custom"
+                          ? "bg-amber-300 text-slate-950 font-bold shadow-lg shadow-amber-400/30"
+                          : "border border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      {activeVariant === "custom" ? "Active Selected Build" : "Switch to Custom Build"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Performance Build (Right) */}
+                <div className={`relative flex flex-col justify-between rounded-2xl border p-5 sm:p-6 transition ${
+                  activeVariant === "performance"
+                    ? "border-purple-400/60 bg-purple-400/10 shadow-[0_0_30px_-8px_rgba(167,139,250,0.3)] ring-1 ring-purple-400/40"
+                    : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
+                }`}>
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex rounded-full border border-purple-400/30 bg-purple-400/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-purple-300">
+                        Enthusiast Headroom
+                      </span>
+                      {perfB.total > 0 && custB.total > 0 && perfB.total > custB.total && (
+                        <span className="text-[11px] font-semibold text-purple-300/90">
+                          +{fmt(perfB.total - custB.total)}
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="mt-3 text-lg font-bold text-white">{perfB.title}</h3>
+                    <p className="text-xs text-white/40">{perfB.tagline}</p>
+
+                    <div className="my-5 flex justify-center">
+                      <div className="flex h-20 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-purple-400/80">
+                          <rect width="16" height="20" x="4" y="2" rx="2" />
+                          <path d="M8 6h.01" />
+                          <path d="M16 6h.01" />
+                          <path d="M12 18h.01" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div className="text-center">
+                      <p className="text-xs text-white/40 uppercase tracking-wider font-medium">Estimated Total</p>
+                      <p className="text-2xl font-bold text-white mt-0.5">{fmt(perfB.total)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectBuildVariant("performance")}
+                      className={`w-full rounded-xl py-2.5 text-xs font-semibold transition cursor-pointer ${
+                        activeVariant === "performance"
+                          ? "bg-purple-400 text-slate-950 font-bold shadow-lg shadow-purple-400/20"
+                          : "border border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      {activeVariant === "performance" ? "Active Selected Build" : "Switch to this Build"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Side-by-Side Specs Matrix Table */}
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[640px]">
+                  <thead>
+                    <tr className="border-b border-white/10 bg-white/[0.03] text-xs font-semibold uppercase tracking-wider text-white/40">
+                      <th className="py-3 px-4 w-1/4">Hardware Component</th>
+                      <th className="py-3 px-4 w-1/4">AI Value Build</th>
+                      <th className="py-3 px-4 w-1/4 text-amber-200 bg-amber-400/[0.04]">Your Custom Build</th>
+                      <th className="py-3 px-4 w-1/4">AI Performance Build</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 text-xs">
+                    {COMPARE_CATEGORIES.map((cat) => {
+                      const valComp = extractComp(valB.build, cat.key);
+                      const custComp = extractComp(custB.build, cat.key);
+                      const perfComp = extractComp(perfB.build, cat.key);
+                      return (
+                        <tr key={cat.key} className="hover:bg-white/[0.02] transition">
+                          <td className="py-3.5 px-4 font-semibold text-white/50 align-top">
+                            {cat.label}
+                          </td>
+                          <td className="py-3.5 px-4 align-top">
+                            <p className="font-semibold text-white/85 leading-snug line-clamp-2">
+                              {valComp?.name ?? "—"}
+                            </p>
+                            <p className="text-[11px] text-white/40 mt-0.5">{getCompSpecSnippet(cat.key, valComp)}</p>
+                            <p className="text-[11px] font-medium text-emerald-300 mt-1">{valComp?.price ? fmt(Number(valComp.price)) : "—"}</p>
+                          </td>
+                          <td className="py-3.5 px-4 align-top bg-amber-400/[0.03]">
+                            <p className="font-semibold text-amber-100 leading-snug line-clamp-2">
+                              {custComp?.name ?? "—"}
+                            </p>
+                            <p className="text-[11px] text-amber-200/50 mt-0.5">{getCompSpecSnippet(cat.key, custComp)}</p>
+                            <p className="text-[11px] font-medium text-amber-300 mt-1">{custComp?.price ? fmt(Number(custComp.price)) : "—"}</p>
+                          </td>
+                          <td className="py-3.5 px-4 align-top">
+                            <p className="font-semibold text-white/85 leading-snug line-clamp-2">
+                              {perfComp?.name ?? "—"}
+                            </p>
+                            <p className="text-[11px] text-white/40 mt-0.5">{getCompSpecSnippet(cat.key, perfComp)}</p>
+                            <p className="text-[11px] font-medium text-purple-300 mt-1">{perfComp?.price ? fmt(Number(perfComp.price)) : "—"}</p>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {/* Summary Rows */}
+                    <tr className="bg-white/[0.03] font-semibold">
+                      <td className="py-3.5 px-4 text-white/50">Compatibility</td>
+                      <td className="py-3.5 px-4 text-emerald-300">PASS (Verified)</td>
+                      <td className="py-3.5 px-4 text-emerald-300 bg-amber-400/[0.03]">PASS (Verified)</td>
+                      <td className="py-3.5 px-4 text-emerald-300">PASS (Verified)</td>
+                    </tr>
+                    <tr className="bg-white/[0.03] font-bold text-sm">
+                      <td className="py-4 px-4 text-white/70">Total Build Price</td>
+                      <td className="py-4 px-4 text-white">{fmt(valB.total)}</td>
+                      <td className="py-4 px-4 text-amber-300 bg-amber-400/[0.06]">{fmt(custB.total)}</td>
+                      <td className="py-4 px-4 text-white">{fmt(perfB.total)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ── Descriptive Comparison Narrative ────────────────────────── */}
+              {compBuilds.comparison_summary && (() => {
+                const summary = compBuilds.comparison_summary!;
+
+                return (
+                  <div className="flex flex-col gap-5">
+                    {/* Build Analysis intro */}
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-white/40 mb-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-white/30" />
+                        Build Analysis
+                      </div>
+                      <h3 className="font-heading text-lg sm:text-xl text-white">{summary.headline}</h3>
+                      <p className="mt-2 text-sm text-white/55 leading-relaxed max-w-3xl">{summary.intro}</p>
+                    </div>
+
+                    {/* 3-column descriptive cards */}
+                    <div className="grid gap-4 md:grid-cols-3">
+                      {summary.columns.map((col) => {
+                        const c = compColorMap[col.color] ?? compColorMap.amber;
+                        return (
+                          <div
+                            key={col.id}
+                            className={`rounded-2xl border ${c.border} ${c.bg} p-5 flex flex-col gap-4`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <h4 className={`text-sm font-bold ${c.text}`}>{col.title}</h4>
+                              <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${c.badgeBg} ${c.text}`}>
+                                {col.id === "custom" ? "Your Pick" : "AI Choice"}
+                              </span>
+                            </div>
+                            <p className="text-xs text-white/65 leading-relaxed">{col.summary}</p>
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-[10px] uppercase tracking-wider text-white/30 font-medium">Key Strengths</span>
+                              {col.strengths.map((s, i) => (
+                                <div key={i} className="flex items-start gap-1.5 text-xs text-white/60">
+                                  <span className={`mt-1.5 h-1 w-1 shrink-0 rounded-full ${c.dot}`} />
+                                  <span>{s}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className={`rounded-xl border ${c.border} ${c.bg} px-3 py-2`}>
+                              <p className="text-[10px] uppercase tracking-wider text-white/30 font-medium mb-1">Ideal For</p>
+                              <p className={`text-xs font-medium ${c.accent}`}>{col.ideal_for}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* AI Verdict */}
+                    <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.06] to-transparent p-5 flex gap-4 items-start">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-amber-400/30 bg-amber-400/10">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-300">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="8" x2="12" y2="12" />
+                          <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-amber-200/80 mb-1">AI Verdict</p>
+                        <p className="text-sm text-white/70 leading-relaxed">{summary.verdict}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </section>
+          );
+        })()}
+
+        {/* ─── Build Validation & Alignment Metrics ────────────────────────────── */}
         {result.evaluation && (() => {
           const ev = result.evaluation;
           const EVAL_PARAMS = [
-            {
-              key: "prediction_accuracy" as const,
-              label: "Prediction Accuracy",
-              description: "RF model confidence in tier predictions",
-              format: (m: EvalMetric) => `${m.score}%`,
-              thresholdLabel: (m: EvalMetric) => `≥ ${m.threshold}%`,
-              barPct: (m: EvalMetric) => Math.min(m.score, 100),
-            },
             {
               key: "budget_fit" as const,
               label: "Budget Fit",
@@ -622,7 +1151,7 @@ export default function BuildResultPage() {
             {
               key: "intended_use_alignment" as const,
               label: "Intended-Use Alignment",
-              description: "Tier allocation matches activity demand",
+              description: "Hardware allocation matches activity demand",
               format: (m: EvalMetric) => `${m.score}%`,
               thresholdLabel: (m: EvalMetric) => `≥ ${m.threshold}%`,
               barPct: (m: EvalMetric) => Math.min(m.score, 100),
@@ -636,30 +1165,17 @@ export default function BuildResultPage() {
               thresholdLabel: () => `100%`,
               barPct: (m: EvalMetric) => Math.min(m.score, 100),
             },
-            {
-              key: "recommendation_speed" as const,
-              label: "Recommendation Speed",
-              description: "Pipeline execution time",
-              format: (m: EvalMetric) => `${m.score_seconds ?? 0}s`,
-              thresholdLabel: (m: EvalMetric) =>
-                `≤ ${m.threshold_seconds ?? 15}s`,
-              barPct: (m: EvalMetric) => {
-                const secs = m.score_seconds ?? 0;
-                const max = m.threshold_seconds ?? 15;
-                return Math.min(Math.max(0, (1 - secs / max) * 100), 100);
-              },
-            },
           ];
 
-          const allPassed = EVAL_PARAMS.every((p) => ev[p.key].passed);
+          const allPassed = EVAL_PARAMS.every((p) => ev[p.key]?.passed);
 
           return (
-            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/5 to-transparent p-5 sm:p-7 backdrop-blur shadow-[0_20px_80px_-40px_rgba(139,92,246,0.25)]" data-html2canvas-ignore="true">
+            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/5 to-transparent p-5 sm:p-7 backdrop-blur shadow-[0_20px_80px_-40px_rgba(251,191,36,0.2)]" data-html2canvas-ignore="true">
               <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="font-heading text-2xl">System Evaluation</h2>
+                  <h2 className="font-heading text-xl sm:text-2xl">Build Verification &amp; Fit</h2>
                   <p className="mt-1 text-xs text-white/50">
-                    Automated assessment against the 5 key performance indicators
+                    Comprehensive checks for budget adherence, intended workload balance, and hardware compatibility
                   </p>
                 </div>
                 <span
@@ -673,9 +1189,10 @@ export default function BuildResultPage() {
                 </span>
               </div>
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+              <div className="mt-6 grid gap-4 sm:grid-cols-3">
                 {EVAL_PARAMS.map((param) => {
                   const metric = ev[param.key];
+                  if (!metric) return null;
                   const passed = metric.passed;
                   const bar = param.barPct(metric);
 
@@ -722,7 +1239,7 @@ export default function BuildResultPage() {
                         </span>
                       </div>
 
-                      {/* Description tooltip on hover */}
+                      {/* Description */}
                       <p className="mt-1 text-[10px] text-white/30">
                         {param.description}
                       </p>
@@ -767,20 +1284,34 @@ export default function BuildResultPage() {
                 const tier = result.tiers[key];
                 const tierClass = TIER_COLORS[tier] ?? TIER_COLORS.mid;
 
+                // Check for cooling or thermal mismatch advisory
+                const advisory = mainComp.mismatch_advisory;
+                const hasMismatch = Boolean(advisory && advisory.has_mismatch);
+                const recommendedFixIdx = alternatives.findIndex((alt) => alt.is_recommended_fix);
+
                 return (
                   <div
                     key={key}
-                    className="group rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:bg-white/[0.08]"
+                    className={`group rounded-2xl border p-4 transition ${
+                      hasMismatch
+                        ? "border-amber-400/40 bg-gradient-to-b from-amber-400/[0.08] to-white/5"
+                        : "border-white/10 bg-white/5 hover:bg-white/[0.08]"
+                    }`}
                   >
                     {/* Primary Component Pick */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-3 min-w-0">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-xs text-white/50">{meta.label}</p>
                             <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-300">
                               Main Option
                             </span>
+                            {hasMismatch && (
+                              <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-amber-300">
+                                Advisory
+                              </span>
+                            )}
                           </div>
                           <p className="mt-0.5 text-sm font-semibold text-white truncate">
                             {mainComp.name ?? "Unknown"}
@@ -801,6 +1332,51 @@ export default function BuildResultPage() {
                       </div>
                     </div>
 
+                    {/* Mismatch Advisory Banner (e.g. Air Cooler on High TDP CPU) */}
+                    {hasMismatch && (
+                      <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-200">
+                        <div className="flex items-start gap-2.5">
+                          <div className="mt-0.5 rounded-full bg-amber-400/20 p-1 text-amber-300 shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                              <line x1="12" y1="9" x2="12" y2="13" />
+                              <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 space-y-1.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-amber-100 uppercase tracking-wider text-[10px]">
+                                Thermal Advisory &bull; High-TDP CPU ({advisory?.cpu_tdp ?? 125}W)
+                              </span>
+                              <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[9px] font-medium text-amber-300">
+                                User Choice Honored
+                              </span>
+                            </div>
+                            <p className="text-amber-200/90 text-xs leading-relaxed">
+                              {advisory?.reason ?? "This CPU runs hot enough that air cooling may struggle — here's a liquid option instead."}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                              {recommendedFixIdx !== -1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSwitchComponent(key, recommendedFixIdx)}
+                                  className="rounded-lg bg-amber-300 px-3 py-1 text-xs font-semibold text-slate-950 shadow-sm transition hover:bg-amber-200 flex items-center gap-1.5 cursor-pointer active:scale-95"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>
+                                  </svg>
+                                  <span>Swap to Recommended Liquid Cooler</span>
+                                </button>
+                              )}
+                              <span className="text-[10px] text-amber-300/70 italic">
+                                Original Air pick remains selectable and saved.
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Alternative Options */}
                     {alternatives.length > 0 && (
                       <div className="mt-3 border-t border-white/10 pt-2.5">
@@ -808,30 +1384,68 @@ export default function BuildResultPage() {
                           <span>Alternative Options (Click to Swap):</span>
                         </p>
                         <div className="grid gap-1.5">
-                          {alternatives.map((alt, idx) => (
-                            <div
-                              key={`${key}-alt-${alt.name ?? idx}-${idx}`}
-                              className="flex items-center justify-between text-xs rounded-xl bg-white/[0.04] px-3 py-2 border border-white/5 hover:border-amber-300/30 transition group/alt"
-                            >
-                              <span className="text-white/80 truncate mr-2 flex items-center gap-1.5 min-w-0">
-                                <span className="text-amber-300/80 font-mono text-[10px] shrink-0">#{idx + 2}</span>
-                                <span className="truncate">{alt.name ?? "Alternative"}</span>
-                              </span>
-                              <div className="flex items-center gap-3 shrink-0">
-                                <span className="text-white/60 font-medium">
-                                  {alt.price ? fmt(Number(alt.price)) : "—"}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleSwitchComponent(key, idx)}
-                                  className="rounded-lg border border-amber-300/40 bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200 shadow-sm transition hover:bg-amber-300 hover:text-slate-950 flex items-center gap-1 cursor-pointer active:scale-95"
-                                >
-                                  <span>Swap</span>
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
-                                </button>
+                          {alternatives.map((alt, idx) => {
+                            const isRecommendedFix = Boolean(alt.is_recommended_fix);
+
+                            return (
+                              <div
+                                key={`${key}-alt-${alt.name ?? idx}-${idx}`}
+                                className={`flex flex-col sm:flex-row sm:items-center justify-between text-xs rounded-xl px-3 py-2 border transition gap-2 ${
+                                  isRecommendedFix
+                                    ? "border-amber-400/50 bg-amber-400/10 shadow-[0_0_15px_-3px_rgba(251,191,36,0.15)]"
+                                    : "border-white/5 bg-white/[0.04] hover:border-amber-300/30"
+                                }`}
+                              >
+                                <div className="flex items-start sm:items-center gap-2 min-w-0">
+                                  <span
+                                    className={`font-mono text-[10px] shrink-0 ${
+                                      isRecommendedFix ? "text-amber-300 font-bold" : "text-amber-300/80"
+                                    }`}
+                                  >
+                                    #{idx + 2}
+                                  </span>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span
+                                        className={`truncate ${
+                                          isRecommendedFix ? "font-semibold text-white" : "text-white/80"
+                                        }`}
+                                      >
+                                        {alt.name ?? "Alternative"}
+                                      </span>
+                                      {isRecommendedFix && (
+                                        <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-bold uppercase text-slate-950">
+                                          Recommended Fix
+                                        </span>
+                                      )}
+                                    </div>
+                                    {isRecommendedFix && alt.fix_reason && (
+                                      <p className="text-[10px] text-amber-200/80 mt-0.5 line-clamp-1">
+                                        {String(alt.fix_reason)}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                                  <span className="text-white/70 font-medium">
+                                    {alt.price ? fmt(Number(alt.price)) : "—"}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSwitchComponent(key, idx)}
+                                    className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold shadow-sm transition flex items-center gap-1 cursor-pointer active:scale-95 ${
+                                      isRecommendedFix
+                                        ? "bg-amber-300 text-slate-950 hover:bg-amber-200"
+                                        : "border border-amber-300/40 bg-amber-400/10 text-amber-200 hover:bg-amber-300 hover:text-slate-950"
+                                    }`}
+                                  >
+                                    <span>Swap</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -946,35 +1560,6 @@ export default function BuildResultPage() {
               </div>
             </div>
 
-            {/* Tier Predictions */}
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7">
-              <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-3">
-                <h2 className="font-heading text-lg">AI Tier Predictions</h2>
-                <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs uppercase tracking-widest text-cyan-200">
-                  Model
-                </span>
-              </div>
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {Object.entries(result.tiers).map(([key, tier]) => {
-                  const tierClass = TIER_COLORS[tier] ?? TIER_COLORS.mid;
-                  return (
-                    <div
-                      key={key}
-                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5"
-                    >
-                      <span className="text-xs text-white/50 capitalize">
-                        {key.replace("_", " ")}
-                      </span>
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider shrink-0 ${tierClass}`}
-                      >
-                        {tier}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
 
             {/* Actions */}
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7" data-html2canvas-ignore="true">

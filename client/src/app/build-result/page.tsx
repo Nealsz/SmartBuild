@@ -1251,17 +1251,17 @@ export default function BuildResultPage() {
           );
         })()}
 
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] min-w-0">
           {/* ─── Component Breakdown ─────────────────────────── */}
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7 shadow-[0_30px_120px_-80px_rgba(16,185,129,0.5)] backdrop-blur">
-            <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-3">
-              <h2 className="font-heading text-2xl">Component Breakdown</h2>
+          <div className="min-w-0 rounded-2xl sm:rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-6 md:p-7 shadow-[0_30px_120px_-80px_rgba(16,185,129,0.5)] backdrop-blur">
+            <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+              <h2 className="font-heading text-xl sm:text-2xl text-white">Component Breakdown</h2>
               <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs uppercase tracking-widest text-emerald-200">
                 Build
               </span>
             </div>
 
-            <div className="mt-6 grid gap-3">
+            <div className="mt-5 sm:mt-6 grid gap-3 min-w-0">
               {Object.entries(result.build).map(([key, entry]) => {
                 if (!entry) return null;
 
@@ -1292,18 +1292,18 @@ export default function BuildResultPage() {
                 return (
                   <div
                     key={key}
-                    className={`group rounded-2xl border p-4 transition ${
+                    className={`group rounded-xl sm:rounded-2xl border p-3.5 sm:p-4 transition min-w-0 ${
                       hasMismatch
                         ? "border-amber-400/40 bg-gradient-to-b from-amber-400/[0.08] to-white/5"
                         : "border-white/10 bg-white/5 hover:bg-white/[0.08]"
                     }`}
                   >
                     {/* Primary Component Pick */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-xs text-white/50">{meta.label}</p>
+                    <div className="flex flex-col xs:flex-row xs:items-start justify-between gap-2 sm:gap-3 min-w-0">
+                      <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <p className="text-[11px] sm:text-xs text-white/50">{meta.label}</p>
                             <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-300">
                               Main Option
                             </span>
@@ -1313,18 +1313,18 @@ export default function BuildResultPage() {
                               </span>
                             )}
                           </div>
-                          <p className="mt-0.5 text-sm font-semibold text-white truncate">
+                          <p className="mt-0.5 text-xs sm:text-sm font-semibold text-white break-words sm:truncate">
                             {mainComp.name ?? "Unknown"}
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className="text-sm font-semibold text-white">
+                      <div className="flex xs:flex-col items-center xs:items-end justify-between xs:justify-start gap-1 shrink-0 pt-1 xs:pt-0 border-t xs:border-t-0 border-white/5">
+                        <span className="text-xs sm:text-sm font-semibold text-white">
                           {mainComp.price ? fmt(Number(mainComp.price)) : "—"}
                         </span>
                         {tier && (
                           <span
-                            className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider ${tierClass}`}
+                            className={`rounded-full border px-2 py-0.5 text-[9px] sm:text-[10px] uppercase tracking-wider ${tierClass}`}
                           >
                             {tier}
                           </span>
@@ -1334,8 +1334,8 @@ export default function BuildResultPage() {
 
                     {/* Mismatch Advisory Banner (e.g. Air Cooler on High TDP CPU) */}
                     {hasMismatch && (
-                      <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-200">
-                        <div className="flex items-start gap-2.5">
+                      <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-200 min-w-0">
+                        <div className="flex items-start gap-2.5 min-w-0">
                           <div className="mt-0.5 rounded-full bg-amber-400/20 p-1 text-amber-300 shrink-0">
                             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
@@ -1343,16 +1343,16 @@ export default function BuildResultPage() {
                               <line x1="12" y1="17" x2="12.01" y2="17" />
                             </svg>
                           </div>
-                          <div className="flex-1 space-y-1.5">
+                          <div className="flex-1 min-w-0 space-y-1.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-amber-100 uppercase tracking-wider text-[10px]">
+                              <span className="font-semibold text-amber-100 uppercase tracking-wider text-[10px] break-words">
                                 Thermal Advisory &bull; High-TDP CPU ({advisory?.cpu_tdp ?? 125}W)
                               </span>
                               <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[9px] font-medium text-amber-300">
                                 User Choice Honored
                               </span>
                             </div>
-                            <p className="text-amber-200/90 text-xs leading-relaxed">
+                            <p className="text-amber-200/90 text-xs leading-relaxed break-words">
                               {advisory?.reason ?? "This CPU runs hot enough that air cooling may struggle — here's a liquid option instead."}
                             </p>
                             <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -1360,7 +1360,7 @@ export default function BuildResultPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleSwitchComponent(key, recommendedFixIdx)}
-                                  className="rounded-lg bg-amber-300 px-3 py-1 text-xs font-semibold text-slate-950 shadow-sm transition hover:bg-amber-200 flex items-center gap-1.5 cursor-pointer active:scale-95"
+                                  className="rounded-lg bg-amber-300 px-3 py-1.5 text-xs font-semibold text-slate-950 shadow-sm transition hover:bg-amber-200 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 w-full sm:w-auto"
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>
@@ -1379,24 +1379,24 @@ export default function BuildResultPage() {
 
                     {/* Alternative Options */}
                     {alternatives.length > 0 && (
-                      <div className="mt-3 border-t border-white/10 pt-2.5">
+                      <div className="mt-3 border-t border-white/10 pt-2.5 min-w-0">
                         <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1.5 font-medium flex items-center justify-between">
                           <span>Alternative Options (Click to Swap):</span>
                         </p>
-                        <div className="grid gap-1.5">
+                        <div className="grid gap-1.5 min-w-0">
                           {alternatives.map((alt, idx) => {
                             const isRecommendedFix = Boolean(alt.is_recommended_fix);
 
                             return (
                               <div
                                 key={`${key}-alt-${alt.name ?? idx}-${idx}`}
-                                className={`flex flex-col sm:flex-row sm:items-center justify-between text-xs rounded-xl px-3 py-2 border transition gap-2 ${
+                                className={`flex flex-col sm:flex-row sm:items-center justify-between text-xs rounded-xl p-2.5 sm:px-3 sm:py-2 border transition gap-2 min-w-0 ${
                                   isRecommendedFix
                                     ? "border-amber-400/50 bg-amber-400/10 shadow-[0_0_15px_-3px_rgba(251,191,36,0.15)]"
                                     : "border-white/5 bg-white/[0.04] hover:border-amber-300/30"
                                 }`}
                               >
-                                <div className="flex items-start sm:items-center gap-2 min-w-0">
+                                <div className="flex items-start sm:items-center gap-2 min-w-0 flex-1">
                                   <span
                                     className={`font-mono text-[10px] shrink-0 ${
                                       isRecommendedFix ? "text-amber-300 font-bold" : "text-amber-300/80"
@@ -1404,7 +1404,7 @@ export default function BuildResultPage() {
                                   >
                                     #{idx + 2}
                                   </span>
-                                  <div className="min-w-0">
+                                  <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
                                       <span
                                         className={`truncate ${
@@ -1414,7 +1414,7 @@ export default function BuildResultPage() {
                                         {alt.name ?? "Alternative"}
                                       </span>
                                       {isRecommendedFix && (
-                                        <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-bold uppercase text-slate-950">
+                                        <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-bold uppercase text-slate-950 shrink-0">
                                           Recommended Fix
                                         </span>
                                       )}
@@ -1426,7 +1426,7 @@ export default function BuildResultPage() {
                                     )}
                                   </div>
                                 </div>
-                                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-white/5">
                                   <span className="text-white/70 font-medium">
                                     {alt.price ? fmt(Number(alt.price)) : "—"}
                                   </span>
@@ -1455,18 +1455,18 @@ export default function BuildResultPage() {
             </div>
 
             {/* ─── Total Cost ────────────────────────────────── */}
-            <div className="mt-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-5">
-              <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-4">
+            <div className="mt-5 sm:mt-6 rounded-xl sm:rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 sm:p-5 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-widest text-emerald-200/70">
                     Total Estimated Cost
                   </p>
-                  <p className="mt-1 font-heading text-2xl text-white">
+                  <p className="mt-1 font-heading text-xl sm:text-2xl text-white">
                     {fmt(result.total)}
                   </p>
                 </div>
                 <div
-                  className={`rounded-full border px-4 py-1.5 text-xs font-semibold uppercase tracking-wider ${
+                  className={`rounded-full border px-4 py-1.5 text-xs font-semibold uppercase tracking-wider w-fit ${
                     result.budget_fit
                       ? "border-emerald-400/50 bg-emerald-400/20 text-emerald-200"
                       : "border-red-400/50 bg-red-400/20 text-red-200"
@@ -1484,11 +1484,11 @@ export default function BuildResultPage() {
           </div>
 
           {/* ─── Right Column: Compatibility & Actions ───────── */}
-          <div className="flex flex-col gap-6">
+          <div className="min-w-0 flex flex-col gap-6">
             {/* Compatibility Check */}
-            <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 via-white/5 to-transparent p-5 sm:p-7">
-              <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-3">
-                <h2 className="font-heading text-2xl">Compatibility Check</h2>
+            <div className="min-w-0 rounded-2xl sm:rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 via-white/5 to-transparent p-4 sm:p-6 md:p-7">
+              <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+                <h2 className="font-heading text-xl sm:text-2xl text-white">Compatibility Check</h2>
                 <span
                   className={`rounded-full border px-3 py-1 text-xs uppercase tracking-widest ${
                     STATUS_COLORS[compat.overall]?.border ?? ""
@@ -1505,7 +1505,7 @@ export default function BuildResultPage() {
               </div>
 
               {/* Summary Counters */}
-              <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
                 {[
                   { label: "Passed", count: compat.passed, color: "emerald" },
                   { label: "Warnings", count: compat.warnings, color: "amber" },
@@ -1513,10 +1513,10 @@ export default function BuildResultPage() {
                 ].map((s) => (
                   <div
                     key={s.label}
-                    className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-center"
+                    className="rounded-xl sm:rounded-2xl border border-white/10 bg-white/5 px-1.5 sm:px-3 py-2.5 sm:py-3 text-center min-w-0"
                   >
                     <p
-                      className={`font-heading text-xl ${
+                      className={`font-heading text-lg sm:text-xl ${
                         s.color === "emerald"
                           ? "text-emerald-300"
                           : s.color === "amber"
@@ -1526,7 +1526,7 @@ export default function BuildResultPage() {
                     >
                       {s.count}
                     </p>
-                    <p className="mt-0.5 text-[10px] uppercase tracking-widest text-white/50">
+                    <p className="mt-0.5 text-[9px] sm:text-[10px] uppercase tracking-normal sm:tracking-widest text-white/50 truncate">
                       {s.label}
                     </p>
                   </div>
@@ -1534,24 +1534,24 @@ export default function BuildResultPage() {
               </div>
 
               {/* Details */}
-              <div className="mt-5 grid gap-2">
+              <div className="mt-5 grid gap-2 min-w-0">
                 {compat.details.map((d, i) => {
                   const sc = STATUS_COLORS[d.status];
                   return (
                     <div
                       key={i}
-                      className={`rounded-2xl border ${sc.border} ${sc.bg} px-4 py-3`}
+                      className={`rounded-xl sm:rounded-2xl border ${sc.border} ${sc.bg} px-3.5 sm:px-4 py-2.5 sm:py-3 min-w-0`}
                     >
-                      <div className="flex items-start gap-2">
+                      <div className="flex items-start gap-2 min-w-0">
                         <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${sc.dot}`} />
                         <span className={`text-xs font-semibold shrink-0 ${sc.text}`}>
                           {d.status}
                         </span>
-                        <span className="text-xs text-white/60 break-words">
+                        <span className="text-xs text-white/60 break-words min-w-0 flex-1">
                           {d.rule}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-white/70 pl-4">
+                      <p className="mt-1 text-xs text-white/70 pl-3.5 sm:pl-4 break-words">
                         {d.detail}
                       </p>
                     </div>
@@ -1560,18 +1560,17 @@ export default function BuildResultPage() {
               </div>
             </div>
 
-
             {/* Actions */}
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7" data-html2canvas-ignore="true">
-              <h2 className="font-heading text-lg">What&apos;s next?</h2>
-              <p className="mt-2 text-xs text-white/60">
+            <div className="min-w-0 rounded-2xl sm:rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-6 md:p-7" data-html2canvas-ignore="true">
+              <h2 className="font-heading text-lg sm:text-xl text-white">What&apos;s next?</h2>
+              <p className="mt-1.5 text-xs text-white/60 leading-relaxed">
                 Not satisfied? Go back and adjust your requirements to generate
                 a different build.
               </p>
-              <div className="mt-5 flex flex-col gap-3">
+              <div className="mt-5 flex flex-col gap-2.5 sm:gap-3">
                 <button
                   onClick={() => setTicketModalOpen(true)}
-                  className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 px-5 py-3 text-center text-sm font-bold text-slate-950 shadow-lg shadow-amber-400/25 transition-all hover:shadow-amber-400/40 hover:brightness-110 active:scale-95 cursor-pointer"
+                  className="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 px-4 sm:px-5 py-3 text-center text-xs sm:text-sm font-bold text-slate-950 shadow-lg shadow-amber-400/25 transition-all hover:shadow-amber-400/40 hover:brightness-110 active:scale-95 cursor-pointer w-full"
                 >
                   <span className="relative flex items-center justify-center gap-2">
                     <span>Get Store Ticket / Reserve in Store</span>
@@ -1580,7 +1579,7 @@ export default function BuildResultPage() {
                 <button
                   onClick={handleDownloadPdf}
                   disabled={downloading}
-                  className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:shadow-emerald-500/40 hover:brightness-110 disabled:cursor-wait disabled:opacity-70"
+                  className="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 sm:px-5 py-3 text-center text-xs sm:text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:shadow-emerald-500/40 hover:brightness-110 disabled:cursor-wait disabled:opacity-70 cursor-pointer w-full"
                 >
                   <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                   <span className="relative flex items-center justify-center gap-2">
@@ -1606,13 +1605,13 @@ export default function BuildResultPage() {
                 </button>
                 <Link
                   href="/user-input"
-                  className="rounded-2xl bg-white px-5 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-white/90"
+                  className="rounded-xl sm:rounded-2xl bg-white px-4 sm:px-5 py-3 text-center text-xs sm:text-sm font-semibold text-slate-950 transition hover:bg-white/90 w-full"
                 >
                   Generate another build
                 </Link>
                 <Link
                   href="/"
-                  className="rounded-2xl border border-white/20 px-5 py-3 text-center text-sm font-semibold text-white/80 transition hover:bg-white/5"
+                  className="rounded-xl sm:rounded-2xl border border-white/20 px-4 sm:px-5 py-3 text-center text-xs sm:text-sm font-semibold text-white/80 transition hover:bg-white/5 w-full"
                 >
                   Back to home
                 </Link>

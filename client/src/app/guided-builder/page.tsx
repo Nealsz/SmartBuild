@@ -586,11 +586,11 @@ export default function GuidedBuilderPage() {
           )}
 
           {/* Stepper Navigation Buttons */}
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
             <button
               type="button"
               onClick={handlePrevious}
-              className="text-xs text-white/40 hover:text-white/70 transition flex items-center gap-1.5 cursor-pointer"
+              className="text-xs text-white/40 hover:text-white/70 transition flex items-center justify-center sm:justify-start gap-1.5 py-2 px-1 cursor-pointer w-full sm:w-auto"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -613,7 +613,7 @@ export default function GuidedBuilderPage() {
               type="button"
               disabled={!selectedOption || finalizing}
               onClick={handleConfirmSelection}
-              className={`flex items-center gap-2 rounded-full px-8 py-3 text-sm font-semibold transition shadow-lg ${
+              className={`flex h-11 items-center justify-center gap-2 rounded-full px-8 text-sm font-semibold transition shadow-lg w-full sm:w-auto ${
                 selectedOption && !finalizing
                   ? "bg-amber-300 text-slate-950 shadow-amber-400/30 hover:bg-amber-200 cursor-pointer"
                   : "bg-white/10 text-white/30 cursor-not-allowed"

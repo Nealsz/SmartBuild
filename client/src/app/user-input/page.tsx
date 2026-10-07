@@ -473,9 +473,9 @@ export default function UserInputPage() {
         <div className="absolute inset-0 opacity-60 [background:linear-gradient(120deg,rgba(251,191,36,0.08),transparent_40%),linear-gradient(240deg,rgba(59,130,246,0.1),transparent_50%)]" />
       </div>
 
-      <main className="relative mx-auto flex w-full max-w-2xl flex-col gap-8 px-6 pb-24 pt-12">
+      <main className="relative mx-auto flex w-full max-w-2xl flex-col gap-6 sm:gap-8 px-4 sm:px-6 pb-24 pt-8 sm:pt-12">
         {/* Header */}
-        <header className="flex flex-col gap-4">
+        <header className="flex flex-col gap-3 sm:gap-4">
           <Link
             href="/"
             className="flex items-center gap-2 text-xs text-white/50 transition hover:text-white/80 w-fit"
@@ -487,18 +487,18 @@ export default function UserInputPage() {
             <span className="h-2 w-2 rounded-full bg-amber-300 animate-pulse" />
             SmartBuild AI Recommendation
           </div>
-          <h1 className="font-heading text-3xl leading-tight tracking-tight sm:text-4xl">
+          <h1 className="font-heading text-2xl sm:text-4xl leading-tight tracking-tight">
             Tell us about your ideal PC.
           </h1>
         </header>
 
         {/* Progress */}
         <div className="flex flex-col gap-3">
-          <div className="flex justify-between">
+          <div className="flex justify-between items-center w-full px-1">
             {activeSteps.map((s, i) => (
-              <div key={s} className="flex flex-col items-center gap-1">
+              <div key={s} className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
                 <div
-                  className={`h-2 w-2 rounded-full transition-all duration-500 ${
+                  className={`h-2 w-2 rounded-full transition-all duration-500 shrink-0 ${
                     i < stepIndex
                       ? "bg-amber-300 scale-100"
                       : i === stepIndex
@@ -507,9 +507,9 @@ export default function UserInputPage() {
                   }`}
                 />
                 <span
-                  className={`text-[10px] transition-all duration-300 ${
-                    i <= stepIndex ? "text-amber-200/80" : "text-white/25"
-                  }`}
+                  className={`text-[9px] sm:text-[10px] transition-all duration-300 text-center truncate max-w-[48px] sm:max-w-none ${
+                    i <= stepIndex ? "text-amber-200/90 font-medium" : "text-white/25"
+                  } ${i === stepIndex ? "font-semibold text-amber-300" : "hidden sm:inline-block"}`}
                 >
                   {STEP_LABELS[s]}
                 </span>
@@ -529,7 +529,7 @@ export default function UserInputPage() {
 
         {/* Slide Card */}
         <div
-          className={`rounded-3xl border border-white/10 bg-white/5 p-7 shadow-[0_30px_120px_-80px_rgba(251,191,36,0.4)] backdrop-blur ${slideClass}`}
+          className={`rounded-2xl sm:rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7 shadow-[0_30px_120px_-80px_rgba(251,191,36,0.4)] backdrop-blur ${slideClass}`}
           style={{ transition: "opacity 350ms ease, transform 350ms ease" }}
         >
           {/* ── STEP 1: BUDGET ─────────────────────────────────── */}
@@ -626,8 +626,8 @@ export default function UserInputPage() {
                 </p>
               )}
 
-              <div className="flex items-center justify-between pt-1">
-                <p className="text-xs text-white/30">
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
+                <p className="text-center sm:text-left text-xs text-white/30">
                   Press{" "}
                   <kbd className="rounded border border-white/20 bg-white/10 px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd>{" "}
                   to continue
@@ -636,7 +636,7 @@ export default function UserInputPage() {
                   type="button"
                   id="budget-next-btn"
                   onClick={handleBudgetProceed}
-                  className="flex items-center gap-2 rounded-full bg-amber-300 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition"
+                  className="flex h-11 items-center justify-center gap-2 rounded-full bg-amber-300 px-6 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition w-full sm:w-auto cursor-pointer"
                 >
                   Continue
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -700,7 +700,7 @@ export default function UserInputPage() {
                 <button
                   type="button"
                   onClick={() => transitionTo("budget")}
-                  className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1.5"
+                  className="text-xs text-white/40 hover:text-white/70 transition flex items-center gap-1.5 py-2 px-1 cursor-pointer"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                   Back
@@ -712,7 +712,7 @@ export default function UserInputPage() {
                   onClick={() => {
                     if (primaryActivity) transitionTo("primary-sub");
                   }}
-                  className={`flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition ${
+                  className={`flex h-11 items-center justify-center gap-2 rounded-full px-6 text-sm font-semibold transition ${
                     primaryActivity
                       ? "bg-amber-300 text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 cursor-pointer"
                       : "bg-white/10 text-white/30 cursor-not-allowed"
@@ -783,7 +783,7 @@ export default function UserInputPage() {
                 <button
                   type="button"
                   onClick={() => transitionTo("primary")}
-                  className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1.5"
+                  className="text-xs text-white/40 hover:text-white/70 transition flex items-center gap-1.5 py-2 px-1 cursor-pointer"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                   Back
@@ -792,7 +792,7 @@ export default function UserInputPage() {
                   type="button"
                   id="primary-sub-next-btn"
                   onClick={() => transitionTo("secondary")}
-                  className="flex items-center gap-2 rounded-full bg-amber-300 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition"
+                  className="flex h-11 items-center justify-center gap-2 rounded-full bg-amber-300 px-6 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition cursor-pointer"
                 >
                   Continue
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -880,7 +880,7 @@ export default function UserInputPage() {
                 <button
                   type="button"
                   onClick={() => transitionTo("primary-sub")}
-                  className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1.5"
+                  className="text-xs text-white/40 hover:text-white/70 transition flex items-center gap-1.5 py-2 px-1 cursor-pointer"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                   Back
@@ -895,7 +895,7 @@ export default function UserInputPage() {
                       transitionTo("cooling");
                     }
                   }}
-                  className="flex items-center gap-2 rounded-full bg-amber-300 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition"
+                  className="flex h-11 items-center justify-center gap-2 rounded-full bg-amber-300 px-6 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition cursor-pointer"
                 >
                   Continue
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -962,7 +962,7 @@ export default function UserInputPage() {
                 <button
                   type="button"
                   onClick={() => transitionTo("secondary")}
-                  className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1.5"
+                  className="text-xs text-white/40 hover:text-white/70 transition flex items-center gap-1.5 py-2 px-1 cursor-pointer"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                   Back
@@ -971,7 +971,7 @@ export default function UserInputPage() {
                   type="button"
                   id="secondary-sub-next-btn"
                   onClick={() => transitionTo("cooling")}
-                  className="flex items-center gap-2 rounded-full bg-amber-300 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition"
+                  className="flex h-11 items-center justify-center gap-2 rounded-full bg-amber-300 px-6 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition cursor-pointer"
                 >
                   Continue
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -1032,7 +1032,7 @@ export default function UserInputPage() {
                 <button
                   type="button"
                   onClick={() => transitionTo(secondaryActivity ? "secondary-sub" : "secondary")}
-                  className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1.5"
+                  className="text-xs text-white/40 hover:text-white/70 transition flex items-center gap-1.5 py-2 px-1 cursor-pointer"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                   Back
@@ -1041,7 +1041,7 @@ export default function UserInputPage() {
                   type="button"
                   id="cooling-next-btn"
                   onClick={() => transitionTo("resolution")}
-                  className="flex items-center gap-2 rounded-full bg-amber-300 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition"
+                  className="flex h-11 items-center justify-center gap-2 rounded-full bg-amber-300 px-6 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-200 transition cursor-pointer"
                 >
                   Continue
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -1083,27 +1083,27 @@ export default function UserInputPage() {
                 </div>
               )}
 
-              <div className="flex flex-col gap-3 pt-1">
-                <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 pt-2">
+                <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
                   <button
                     type="button"
                     onClick={() => transitionTo("cooling")}
-                    className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1.5"
+                    className="text-xs text-white/40 hover:text-white/80 transition flex items-center justify-center sm:justify-start gap-1.5 py-2.5 px-3 rounded-full hover:bg-white/5 w-full sm:w-auto cursor-pointer"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                     Back
                   </button>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
                     <button
                       id="generate-build-btn"
                       type="button"
                       disabled={loading}
                       onClick={handleSubmit}
-                      className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-xs font-medium text-white/60 transition hover:bg-white/10 hover:text-white cursor-pointer"
+                      className="flex h-11 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:border-white/30 hover:text-white cursor-pointer disabled:opacity-50"
                     >
                       {loading ? (
                         <>
-                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/50 border-t-transparent" />
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-transparent" />
                           Auto-building...
                         </>
                       ) : (
@@ -1114,14 +1114,16 @@ export default function UserInputPage() {
                       id="custom-build-btn"
                       type="button"
                       onClick={handleCustomBuild}
-                      className="flex items-center gap-2 rounded-full bg-amber-300 px-7 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-amber-400/30 transition hover:bg-amber-200 cursor-pointer"
+                      className="flex h-11 items-center justify-center gap-2 rounded-full bg-amber-300 px-6 text-sm font-bold text-slate-950 shadow-lg shadow-amber-400/25 transition hover:bg-amber-200 cursor-pointer"
                     >
                       Start Component Selection
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                     </button>
                   </div>
                 </div>
-                <p className="text-right text-[10px] text-white/30">Select from 3 tailored options per component category with specs and difference comparisons</p>
+                <p className="text-center sm:text-right text-[10px] text-white/30">
+                  Select from 3 tailored options per component category with specs and difference comparisons
+                </p>
               </div>
             </div>
           )}

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 
@@ -57,34 +57,17 @@ export default function Home() {
 
             <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950/80 shadow-2xl group">
               <div className="relative aspect-video w-full">
-                <video
-                  id="hero-guide-video"
-                  controls
-                  poster="/video-guide-placeholder.jpg"
-                  className="h-full w-full object-cover"
-                >
-                  <source src="/videos/user-guide.mp4" type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-
-                {/* Fullscreen button - fades in on hover */}
-                <button
-                  type="button"
-                  aria-label="View fullscreen"
-                  onClick={() => {
-                    const v = document.getElementById("hero-guide-video") as HTMLVideoElement | null;
-                    if (v?.requestFullscreen) v.requestFullscreen();
-                  }}
-                  className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/60 px-2.5 py-1.5 text-[11px] font-medium text-white/80 backdrop-blur transition hover:bg-white/20 hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3" />
-                    <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
-                    <path d="M3 16v3a2 2 0 0 0 2 2h3" />
-                    <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
-                  </svg>
-                  Fullscreen
-                </button>
+                <iframe
+                  src="https://embed.app.guidde.com/playbooks/7N4FxJnNge94CRUnzAPSXB?mode=videoOnly"
+                  title="Configure Custom PC Builds Efficiently with SmartBuild Demo"
+                  frameBorder="0"
+                  referrerPolicy="unsafe-url"
+                  allowFullScreen
+                  allow="clipboard-write"
+                  sandbox="allow-popups allow-popups-to-escape-sandbox allow-scripts allow-forms allow-same-origin allow-presentation"
+                  className="h-full w-full"
+                  style={{ borderRadius: "10px" }}
+                />
 
                 {/* Label chips */}
                 <div className="pointer-events-none absolute top-3 left-3 flex items-center gap-2">

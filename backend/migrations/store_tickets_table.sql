@@ -2,8 +2,11 @@
 -- SmartBuild — store_tickets table migration
 -- Run this in your Supabase SQL Editor
 -- ============================================================
--- No personal information (name, phone, email) is stored.
--- The ticket code alone is the unique identifier for the reservation.
+-- Supports SDG 12 Responsible Consumption (Hardware Upcycling):
+-- `build_data` jsonb stores both store components (with inventory id and price)
+-- and customer-reused components (with `id: null`, `price: 0`, and `is_user_provided: true`).
+-- When tickets transition status, stock deduction ignores customer-provided components.
+
 
 CREATE TABLE IF NOT EXISTS store_tickets (
   id                  uuid        PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -219,33 +219,50 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
-            <h2 className="font-heading text-2xl">Ready to build?</h2>
-            <p className="mt-3 text-sm text-white/70">
-              Answer a few quick questions and get a complete, ready-to-buy PC
-              parts list matched to your exact needs and budget.
+          <div className="rounded-3xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 via-slate-900/80 to-slate-950 p-8 shadow-2xl relative overflow-hidden">
+            <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-emerald-400/10 blur-2xl" />
+            
+            <div className="flex items-center gap-2">
+              <span className="rounded-full border border-emerald-400/40 bg-emerald-400/15 px-3 py-1 text-[11px] font-semibold tracking-wider uppercase text-emerald-300">
+                SDG 12 • Responsible Consumption
+              </span>
+            </div>
+
+            <h2 className="mt-4 font-heading text-2xl text-white">Have old parts to reuse?</h2>
+            <p className="mt-2 text-sm text-slate-300/80 leading-relaxed">
+              Don&apos;t throw away working hardware! Input your existing graphics card, RAM, power supply, case, or storage. SmartBuild will verify compatibility and configure only the missing parts to finish your PC — saving you money and diverting toxic electronic waste.
             </p>
+
             <div className="mt-6 flex flex-col gap-3">
+              <Link
+                href="/user-input?mode=reuse"
+                id="cta-reuse-btn"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-3.5 text-center text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-300"
+              >
+                <span>Build Around My Old Parts</span>
+              </Link>
+
               <Link
                 href="/user-input"
                 id="cta-start-btn"
-                className="rounded-2xl bg-white px-5 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-white/90"
+                className="rounded-2xl border border-white/15 bg-white/5 px-5 py-2.5 text-center text-xs font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
               >
-                Start My Build
+                Or start a fresh build from scratch →
               </Link>
             </div>
-            <div className="mt-6 grid gap-3 text-xs text-white/60">
+
+            <div className="mt-6 grid gap-2.5 border-t border-white/10 pt-5 text-xs text-slate-300/70">
               <div className="flex items-center justify-between">
-                <span>All parts guaranteed compatible</span>
-                <span className="text-white">✓</span>
+                <span>Diverts hazardous e-waste from landfills (Target 12.5)</span>
+                <svg className="h-3.5 w-3.5 text-emerald-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
               </div>
               <div className="flex items-center justify-between">
-                <span>Stays within your budget</span>
-                <span className="text-white">✓</span>
+                <span>Reused parts locked at ₱0 on store bill</span>
+                <svg className="h-3.5 w-3.5 text-emerald-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
               </div>
               <div className="flex items-center justify-between">
-                <span>Build ready in seconds</span>
-                <span className="text-white">✓</span>
+                <span>AI compatibility check with store stock</span>
+                <svg className="h-3.5 w-3.5 text-emerald-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
               </div>
             </div>
           </div>

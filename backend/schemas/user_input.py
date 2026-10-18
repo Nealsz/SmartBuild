@@ -12,6 +12,12 @@ VALID_ACTIVITIES = list(ACTIVITY_WEIGHTS.keys())
 VALID_RESOLUTION_TARGETS = list(RESOLUTION_TARGET_WEIGHTS.keys())
 
 
+class ReusedComponentItem(BaseModel):
+    category: str
+    name: str
+    specs: Optional[dict[str, Any]] = None
+
+
 class UserInput(BaseModel):
     min_budget:             int
     max_budget:             int
@@ -21,6 +27,7 @@ class UserInput(BaseModel):
     secondary_subcategory: Optional[str] = "Standard"
     cooling_preference:     Optional[str] = "Auto"
     resolution_target:      str = "1080p 144Hz+ (FHD High FPS)"
+    reused_components:      Optional[list[ReusedComponentItem]] = []
 
     @field_validator("primary_activity")
     @classmethod

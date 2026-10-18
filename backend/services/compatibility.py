@@ -88,6 +88,8 @@ def check_compatibility(
     if ram is not None and mb is not None:
         total_cap = float(ram.get("total_capacity_gb", 0))
         max_mem   = float(mb.get("max_memory", 0))
+        if max_mem <= 0:
+            max_mem = 64.0
         if total_cap <= max_mem:
             results.append(("PASS", "RAM Capacity ≤ Motherboard Max Memory",
                 f"{total_cap:.0f}GB ≤ {max_mem:.0f}GB"))

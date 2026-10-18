@@ -27,6 +27,56 @@ const COMPONENT_LABELS: Record<string, { label: string }> = {
   case_fan:    { label: "Case Fans" },
 };
 
+function getCompSpecSnippet(cat: string, comp: any): string {
+  if (!comp) return "—";
+  if (comp.spec_snippet) return String(comp.spec_snippet);
+  if (cat === "cpu") {
+    const cores = comp.core_count ? `${comp.core_count}C` : "";
+    const threads = comp.thread_count ? `/${comp.thread_count}T` : "";
+    const clock = comp.boost_clock ? ` • ${comp.boost_clock}GHz` : comp.core_clock ? ` • ${comp.core_clock}GHz` : "";
+    return `${cores}${threads}${clock}`.replace(/^ •\s*/, "") || String(comp.socket ?? "");
+  }
+  if (cat === "gpu") {
+    const vram = comp.memory ? `${comp.memory}GB VRAM` : "";
+    const chip = comp.chipset ? ` • ${comp.chipset}` : "";
+    return `${vram}${chip}`.replace(/^ •\s*/, "") || "Discrete Graphics";
+  }
+  if (cat === "ram") {
+    const cap = comp.total_capacity_gb ? `${comp.total_capacity_gb}GB` : "";
+    const gen = comp.ddr_gen ? ` ${comp.ddr_gen}` : "";
+    const spd = comp.speed_mhz ? ` • ${comp.speed_mhz}MHz` : "";
+    return `${cap}${gen}${spd}`.replace(/^ •\s*/, "") || "System Memory";
+  }
+  if (cat === "storage") {
+    const c = Number(comp.capacity || 0);
+    const cap = c >= 1000 ? `${(c / 1000).toFixed(0)}TB` : (c > 0 ? `${c}GB` : "");
+    const type = comp.type ? ` • ${comp.type}` : "";
+    return `${cap}${type}`.replace(/^ •\s*/, "") || "High-Speed Storage";
+  }
+  if (cat === "psu") {
+    const watt = comp.wattage ? `${comp.wattage}W` : "";
+    const eff = comp.efficiency_rating || comp.efficiency ? ` • ${comp.efficiency_rating || comp.efficiency}` : "";
+    return `${watt}${eff}`.replace(/^ •\s*/, "") || "ATX Power Supply";
+  }
+  if (cat === "motherboard") {
+    const sock = comp.socket ? `${comp.socket}` : "";
+    const ff = comp.form_factor ? ` • ${comp.form_factor}` : "";
+    return `${sock}${ff}`.replace(/^ •\s*/, "") || "System Motherboard";
+  }
+  if (cat === "case") {
+    return String(comp.type ?? comp.form_factor ?? "Mid Tower Chassis");
+  }
+  if (cat === "cpu_cooler") {
+    const size = comp.size ? `${comp.size}mm` : "";
+    const isLiquid = String(comp.name ?? "").toUpperCase().includes("LIQUID");
+    return `${size} ${isLiquid ? "Liquid AIO" : "Air Cooler"}`.trim();
+  }
+  if (cat === "case_fan") {
+    return comp.airflow_cfm ? `${comp.airflow_cfm} CFM Airflow` : "120mm Chassis Fan";
+  }
+  return "";
+}
+
 export default function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
   if (!ticket) return null;
 
@@ -120,20 +170,50 @@ export default function TicketDetailModal({ ticket, onClose }: TicketDetailModal
               const comp = typeof entry === "object" && "main" in entry ? entry.main : entry;
               if (!comp) return null;
 
+              const isReused = Boolean(comp.is_user_provided || (!comp.id && comp.price === 0));
+
               return (
                 <div
                   key={catKey}
-                  className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.04] p-3 text-xs"
+                  className={`flex items-center justify-between rounded-xl border p-3 text-xs ${
+                    isReused
+                      ? "border-emerald-500/30 bg-emerald-500/10"
+                      : "border-white/5 bg-white/[0.04]"
+                  }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0 pr-3">
                     <div className="min-w-0">
-                      <span className="text-[10px] text-white/40 block">{meta.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-white/40 block">{meta.label}</span>
+                        {isReused && (
+                          <span className="rounded bg-emerald-400/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-emerald-300 border border-emerald-400/30">
+                            Customer Reused Part
+                          </span>
+                        )}
+                      </div>
                       <span className="font-medium text-white truncate block">{comp.name || "Unknown Component"}</span>
+                      {(() => {
+                        const snippet = getCompSpecSnippet(catKey, comp);
+                        if (!snippet || snippet === "—") return null;
+                        return (
+                          <span className={`text-[10px] block font-mono mt-0.5 ${isReused ? "text-emerald-300/80" : "text-white/50"}`}>
+                            {snippet}
+                          </span>
+                        );
+                      })()}
+                      {isReused && (
+                        <span className="text-[10px] text-emerald-300/80 block mt-0.5">
+                          Customer brings their own component to the shop
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <span className="font-semibold text-white shrink-0">
-                    {comp.price ? fmt(Number(comp.price)) : "—"}
-                  </span>
+                  <div className="text-right shrink-0">
+                    <span className={`font-semibold block ${isReused ? "text-emerald-300" : "text-white"}`}>
+                      {isReused ? "₱0" : (comp.price ? fmt(Number(comp.price)) : "—")}
+                    </span>
+                    {isReused && <span className="text-[9px] text-white/40">Free (BYOP)</span>}
+                  </div>
                 </div>
               );
             })}

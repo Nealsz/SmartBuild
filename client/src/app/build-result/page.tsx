@@ -107,6 +107,14 @@ type BuildResult = {
     performance?: ComparisonBuildItem;
     comparison_summary?: ComparisonSummary;
   };
+  hardware_advisories?: Array<{
+    rule: string;
+    status: string;
+    title: string;
+    message: string;
+    involves_reused?: boolean;
+    categories?: string[];
+  }>;
 };
 
 type UserInputSummary = {
@@ -182,6 +190,7 @@ function extractComp(
 
 function getCompSpecSnippet(cat: string, comp: ComponentData | null): string {
   if (!comp) return "—";
+  if (comp.spec_snippet) return String(comp.spec_snippet);
   if (cat === "cpu") {
     const cores = comp.core_count ? `${comp.core_count}C` : "";
     const threads = comp.thread_count ? `/${comp.thread_count}T` : "";
@@ -439,79 +448,363 @@ export default function BuildResultPage() {
   const contentRef = useRef<HTMLDivElement>(null);
 
   const handleDownloadPdf = useCallback(async () => {
-    if (!contentRef.current) return;
+    if (!result) return;
     setDownloading(true);
+
+    const PAGE_W = 794;
+    const PAGE_H = 1123;
+
+    // Off-screen host container
+    const host = document.createElement("div");
+    host.style.cssText = "position:fixed;left:-9999px;top:0;width:820px;z-index:-9999;pointer-events:none;";
+    document.body.appendChild(host);
+
+    interface PageEntry {
+      page: HTMLDivElement;
+      header: HTMLDivElement;
+      body: HTMLDivElement;
+      footer: HTMLDivElement;
+    }
+
+    const pages: PageEntry[] = [];
+
+    const createPage = (pageIndex: number): PageEntry => {
+      const page = document.createElement("div");
+      page.style.cssText = `width:${PAGE_W}px;height:${PAGE_H}px;box-sizing:border-box;padding:28px 36px 48px 36px;background:#020617;color:#ffffff;display:flex;flex-direction:column;position:relative;overflow:hidden;`;
+      page.className = "bg-slate-950 text-white font-sans antialiased";
+
+      const header = document.createElement("div");
+      header.className = "shrink-0 mb-2.5";
+      if (pageIndex === 0) {
+        header.innerHTML = `
+          <div class="flex items-center justify-between border-b border-white/10 pb-2">
+            <div class="flex items-center gap-2">
+              <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+              <span class="text-xs uppercase tracking-[0.25em] font-semibold text-emerald-300">SmartBuild AI Recommendation</span>
+            </div>
+            <span class="text-xs text-white/40">${new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</span>
+          </div>
+          <h1 class="mt-2 font-heading text-xl font-bold tracking-tight text-white">Your PC Build — Selected Components</h1>
+        `;
+      } else {
+        header.innerHTML = `
+          <div class="flex items-center justify-between border-b border-white/10 pb-2">
+            <div class="flex items-center gap-2">
+              <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+              <span class="text-xs uppercase tracking-[0.25em] font-semibold text-emerald-300">SmartBuild AI Recommendation</span>
+            </div>
+            <span class="text-xs text-white/40">Page Continued</span>
+          </div>
+        `;
+      }
+      page.appendChild(header);
+
+      const body = document.createElement("div");
+      body.className = "flex flex-col gap-2";
+      body.style.cssText = "display:flex;flex-direction:column;gap:8px;";
+      page.appendChild(body);
+
+      const footer = document.createElement("div");
+      footer.style.cssText = "position:absolute;bottom:18px;left:36px;right:36px;height:24px;border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:rgba(255,255,255,0.4);";
+      page.appendChild(footer);
+
+      host.appendChild(page);
+      return { page, header, body, footer };
+    };
+
     try {
-      const canvas = await html2canvas(contentRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#020617", // slate-950
-        logging: false,
+      // ── Build layout blocks ──────────────────────────────────────
+      interface LayoutBlock {
+        html: string;
+        isHeading?: boolean;
+      }
+      const blocks: LayoutBlock[] = [];
+
+      // 1. Requirements summary (compact header strip)
+      if (input) {
+        blocks.push({
+          html: `
+            <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-semibold text-white">Your Requirements</span>
+                  <span class="text-[10px] text-white/40">Target Specifications</span>
+                </div>
+                <span class="rounded-full border border-blue-400/30 bg-blue-400/10 px-2 py-0.5 text-[9px] uppercase tracking-widest text-blue-200 font-medium">Summary</span>
+              </div>
+              <div class="grid gap-1.5 grid-cols-4">
+                <div class="flex flex-col rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
+                  <span class="text-white/40 text-[9px] uppercase tracking-wider">Budget</span>
+                  <span class="text-white font-medium text-xs mt-0.5">${fmt(input.min_budget)} – ${fmt(input.max_budget)}</span>
+                </div>
+                <div class="flex flex-col rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
+                  <span class="text-white/40 text-[9px] uppercase tracking-wider">Primary</span>
+                  <span class="text-white font-medium text-xs mt-0.5 truncate">${input.primary_activity}${input.primary_subcategory ? ` (${input.primary_subcategory})` : ""}</span>
+                </div>
+                <div class="flex flex-col rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
+                  <span class="text-white/40 text-[9px] uppercase tracking-wider">Cooling</span>
+                  <span class="text-white font-medium text-xs mt-0.5">${input.cooling_preference ?? "Auto"}</span>
+                </div>
+                <div class="flex flex-col rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
+                  <span class="text-white/40 text-[9px] uppercase tracking-wider">Resolution</span>
+                  <span class="text-white font-medium text-xs mt-0.5">${input.resolution_target}</span>
+                </div>
+              </div>
+            </div>`,
+        });
+      }
+
+      // 2. SDG 12 Banner (if present)
+      const sdg = (result as any)?.sdg12_metrics;
+      if (sdg) {
+        blocks.push({
+          html: `
+            <div class="rounded-xl border border-emerald-400/40 bg-emerald-500/15 px-3 py-2 flex items-center justify-between">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300 border border-emerald-400/30">SDG 12 Verified</span>
+                  <span class="text-xs font-semibold text-white">Hardware Upcycling — Zero-Waste Build</span>
+                </div>
+                <p class="text-[10px] text-slate-300/80 mt-0.5">Reused ${sdg.reused_count} component(s) at ₱0 cost.</p>
+              </div>
+              <div class="text-right">
+                <span class="text-[9px] text-white/50 uppercase tracking-wider font-mono block">Diverted E-Waste</span>
+                <span class="font-heading text-base font-bold text-emerald-300">~${sdg.ewaste_diverted_kg} kg</span>
+              </div>
+            </div>`,
+        });
+      }
+
+      // 3. Section Heading
+      blocks.push({
+        isHeading: true,
+        html: `
+          <div class="flex items-center justify-between pt-0.5">
+            <div class="flex items-center gap-2">
+              <h2 class="font-heading text-sm font-bold uppercase tracking-wider text-white">Component Breakdown</h2>
+              <span class="text-[11px] text-white/40 font-normal">— Selected Components</span>
+            </div>
+            <span class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[9px] uppercase tracking-widest text-emerald-200 font-medium">Build</span>
+          </div>`,
       });
 
-      const imgData = canvas.toDataURL("image/png");
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
+      // 4. Component Cards (ONLY the final selected picks)
+      const ORDERED_CATS = ["cpu", "gpu", "motherboard", "ram", "storage", "psu", "case", "cpu_cooler", "case_fan"];
+      let totalCost = 0;
 
-      // A4 dimensions in points (72 dpi)
-      const pdfWidth = 595.28;
-      const pdfHeight = 841.89;
-      const margin = 24;
-      const contentWidth = pdfWidth - margin * 2;
-      const scaledHeight = (imgHeight * contentWidth) / imgWidth;
-      const contentHeight = pdfHeight - margin * 2;
+      for (const cat of ORDERED_CATS) {
+        const entry = result.build[cat];
+        if (!entry) continue;
 
+        const comp: ComponentData | null =
+          entry && typeof entry === "object" && "main" in entry
+            ? (entry as ComponentGroup).main
+            : (entry as ComponentData);
+        if (!comp) continue;
+
+        const isReused = Boolean((comp as any).is_user_provided || (!comp.id && comp.price === 0));
+        const compPrice = isReused ? 0 : (comp.price ?? 0);
+        totalCost += Number(compPrice);
+        const label = COMPONENT_LABELS[cat]?.label ?? cat.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        const name = String(comp.name ?? "—");
+        const specs = getCompSpecSnippet(cat, comp);
+        const tier = result.tiers[cat] ?? "";
+
+        const borderClass = isReused
+          ? "border-emerald-500/30 bg-emerald-500/[0.06]"
+          : "border-white/10 bg-white/5";
+
+        const priceHtml = isReused
+          ? `<span class="text-xs font-bold text-emerald-300">₱0 (Customer Provided)</span>`
+          : `<span class="text-xs font-semibold text-white">${compPrice > 0 ? fmt(Number(compPrice)) : "—"}</span>`;
+
+        const badgeHtml = isReused
+          ? `<span class="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-300 border border-emerald-400/30">Reused Hardware (SDG 12)</span>`
+          : `<span class="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-300">Main Option</span>`;
+
+        const tierBadge = tier && !isReused
+          ? `<span class="rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-wider ${TIER_COLORS[tier] ?? TIER_COLORS.mid}">${tier}</span>`
+          : "";
+
+        const specClass = isReused ? "text-emerald-300/80 font-medium" : "text-white/45";
+
+        blocks.push({
+          html: `
+            <div class="rounded-xl border p-2.5 ${borderClass}">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <p class="text-[10px] text-white/50 uppercase tracking-wider font-medium">${label}</p>
+                    ${badgeHtml}
+                  </div>
+                  <p class="mt-0.5 text-xs font-semibold text-white leading-snug">${name}</p>
+                  ${specs && specs !== "—" ? `<p class="text-[10px] mt-0.5 font-mono ${specClass}">${specs}</p>` : ""}
+                </div>
+                <div class="flex flex-col items-end gap-1 shrink-0 pt-0.5">
+                  ${priceHtml}
+                  ${tierBadge}
+                </div>
+              </div>
+            </div>`,
+        });
+      }
+
+      // 5. Total & Budget Fit
+      const budgetOk = input
+        ? (totalCost >= input.min_budget && totalCost <= input.max_budget)
+        : result.budget_fit;
+
+      const statusClasses = budgetOk
+        ? "border-emerald-400/50 bg-emerald-400/20 text-emerald-200"
+        : "border-red-400/50 bg-red-400/20 text-red-200";
+
+      blocks.push({
+        html: `
+          <div class="rounded-xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-slate-900/40 p-3.5 flex items-center justify-between">
+            <div>
+              <p class="text-[9px] uppercase tracking-widest font-semibold text-emerald-300/70">Estimated Total</p>
+              <p class="mt-0.5 font-heading text-xl font-bold text-white">${fmt(totalCost)}</p>
+              ${input ? `<p class="mt-0.5 text-[11px] text-emerald-200/60">Budget: ${fmt(input.min_budget)} – ${fmt(input.max_budget)}</p>` : ""}
+            </div>
+            <span class="rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider ${statusClasses}">
+              ${budgetOk ? "Within Budget" : "Over Budget"}
+            </span>
+          </div>`,
+      });
+
+      // 6. Compatibility Check Summary
+      if (result.compatibility) {
+        const co = result.compatibility;
+        const overallClass = co.overall === "PASS"
+          ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-200"
+          : co.overall === "WARN"
+          ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
+          : "border-red-400/40 bg-red-400/10 text-red-200";
+
+        let rulesHtml = "";
+        for (const d of co.details) {
+          const sc = STATUS_COLORS[d.status];
+          rulesHtml += `
+            <div class="rounded-lg border ${sc.border} ${sc.bg} px-2.5 py-1.5">
+              <div class="flex items-start gap-1.5">
+                <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${sc.dot}"></span>
+                <span class="text-[11px] font-semibold shrink-0 ${sc.text}">${d.status}</span>
+                <span class="text-[11px] text-white/60 flex-1">${d.rule}</span>
+              </div>
+              <p class="mt-0.5 text-[11px] text-white/70 pl-3">${d.detail}</p>
+            </div>`;
+        }
+
+        blocks.push({
+          html: `
+            <div class="rounded-xl border border-white/10 bg-white/5 p-3.5 flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <h2 class="font-heading text-xs font-bold text-white uppercase tracking-wider">Compatibility Check</h2>
+                <span class="rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest ${overallClass}">
+                  ${co.overall === "PASS" ? "All Clear" : co.overall === "WARN" ? "Warnings" : "Issues Found"}
+                </span>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <div class="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center">
+                  <p class="font-heading text-sm font-bold text-emerald-300">${co.passed}</p>
+                  <p class="text-[8px] uppercase tracking-widest text-white/50 font-medium">Passed</p>
+                </div>
+                <div class="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center">
+                  <p class="font-heading text-sm font-bold text-amber-300">${co.warnings}</p>
+                  <p class="text-[8px] uppercase tracking-widest text-white/50 font-medium">Warnings</p>
+                </div>
+                <div class="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center">
+                  <p class="font-heading text-sm font-bold text-red-300">${co.failures}</p>
+                  <p class="text-[8px] uppercase tracking-widest text-white/50 font-medium">Failures</p>
+                </div>
+              </div>
+              ${co.details && co.details.length > 0 ? `
+                <div class="mt-0.5 flex flex-col gap-1">
+                  ${rulesHtml}
+                </div>
+              ` : ""}
+            </div>`,
+        });
+      }
+
+      // ── Paginate elements cleanly into A4 containers ─────────────
+      // Available height allows content to go down to 54px above the bottom
+      const MAX_PAGE_CONTENT_BOTTOM = PAGE_H - 54;
+      let currentPage = createPage(0);
+      pages.push(currentPage);
+
+      for (const block of blocks) {
+        const temp = document.createElement("div");
+        temp.innerHTML = block.html.trim();
+        const element = temp.firstElementChild as HTMLElement;
+        if (!element) continue;
+
+        currentPage.body.appendChild(element);
+
+        // Calculate bottom position of the content
+        const currentContentBottom = currentPage.body.offsetTop + currentPage.body.offsetHeight;
+        const isOverflow = currentContentBottom > MAX_PAGE_CONTENT_BOTTOM;
+        // Avoid orphan heading: ensure at least 80px space remaining for at least 1 item
+        const isOrphanHeading = Boolean(block.isHeading && (MAX_PAGE_CONTENT_BOTTOM - currentContentBottom < 80));
+
+        if ((isOverflow || isOrphanHeading) && currentPage.body.children.length > 1) {
+          currentPage.body.removeChild(element);
+          currentPage = createPage(pages.length);
+          pages.push(currentPage);
+          currentPage.body.appendChild(element);
+        }
+      }
+
+      // ── Set final footers with total page count ──────────────────
+      const totalPages = pages.length;
+      pages.forEach((p, idx) => {
+        p.footer.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+            <span class="font-medium text-white/50">SmartBuild AI — PC Component Recommendation</span>
+          </div>
+          <span class="font-mono text-white/50">Page ${idx + 1} of ${totalPages}</span>
+        `;
+      });
+
+      // Wait for fonts & layout
+      if (document.fonts) {
+        await document.fonts.ready;
+      }
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      // ── Render each page to jsPDF ────────────────────────────────
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "pt",
         format: "a4",
       });
+      const pdfWidth = 595.28;
+      const pdfHeight = 841.89;
 
-      // Add background to every page
-      let yOffset = 0;
-      let pageNum = 0;
-
-      while (yOffset < scaledHeight) {
-        if (pageNum > 0) pdf.addPage();
-
-        // Dark background fill
-        pdf.setFillColor(2, 6, 23); // slate-950
-        pdf.rect(0, 0, pdfWidth, pdfHeight, "F");
-
-        pdf.addImage(
-          imgData,
-          "PNG",
-          margin,
-          margin - yOffset,
-          contentWidth,
-          scaledHeight
-        );
-
-        yOffset += contentHeight;
-        pageNum++;
-      }
-
-      // Footer on each page
-      const totalPages = pdf.getNumberOfPages();
-      for (let i = 1; i <= totalPages; i++) {
-        pdf.setPage(i);
-        pdf.setFontSize(8);
-        pdf.setTextColor(255, 255, 255);
-        pdf.text(
-          `SmartBuild — Page ${i} of ${totalPages}`,
-          pdfWidth / 2,
-          pdfHeight - 12,
-          { align: "center" }
-        );
+      for (let i = 0; i < pages.length; i++) {
+        if (i > 0) pdf.addPage();
+        const canvas = await html2canvas(pages[i].page, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#020617",
+          logging: false,
+        });
+        const imgData = canvas.toDataURL("image/png");
+        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
       }
 
       pdf.save("SmartBuild-Recommendation.pdf");
     } catch (err) {
       console.error("PDF generation failed:", err);
     } finally {
+      if (document.body.contains(host)) {
+        document.body.removeChild(host);
+      }
       setDownloading(false);
     }
-  }, []);
+  }, [result, input]);
+
 
   const [activeVariant, setActiveVariant] = useState<"value" | "custom" | "performance">("custom");
 
@@ -797,6 +1090,41 @@ export default function BuildResultPage() {
                 <span className="text-white font-medium break-words text-left sm:text-right w-full sm:w-auto">
                   {input.resolution_target}
                 </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── SDG 12 Eco-Impact Banner ────────────────────────────── */}
+        {(result as any)?.sdg12_metrics && (
+          <div className="rounded-3xl border border-emerald-400/40 bg-gradient-to-br from-emerald-500/15 via-slate-900/80 to-slate-950 p-6 sm:p-7 shadow-2xl relative overflow-hidden backdrop-blur">
+            <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-emerald-400/15 blur-2xl" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+              <div className="flex items-start gap-3.5">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-400/20 text-2xl border border-emerald-400/30">
+                  🌱
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-emerald-400/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300 border border-emerald-400/30">
+                      SDG 12 Verified • Responsible Consumption
+                    </span>
+                  </div>
+                  <h3 className="font-heading text-xl text-white mt-1">
+                    Zero-Waste PC Build — Hardware Upcycling
+                  </h3>
+                  <p className="mt-1 text-xs sm:text-sm text-slate-300/80 max-w-2xl leading-relaxed">
+                    You chose to reuse {(result as any).sdg12_metrics.reused_count} functional hardware component(s) instead of buying new ones. Reused parts are locked at ₱0, saving money while directly preventing toxic e-waste from entering local landfills.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-1 border-t sm:border-t-0 border-white/10 pt-3 sm:pt-0 shrink-0">
+                <span className="text-[11px] text-white/50 uppercase tracking-wider font-mono">Diverted E-Waste</span>
+                <span className="font-heading text-2xl sm:text-3xl font-bold text-emerald-300">
+                  ~{(result as any).sdg12_metrics.ewaste_diverted_kg} kg
+                </span>
+                <span className="text-[10px] text-emerald-400/70">Prevented from landfills</span>
               </div>
             </div>
           </div>
@@ -1261,6 +1589,30 @@ export default function BuildResultPage() {
               </span>
             </div>
 
+            {result.hardware_advisories && result.hardware_advisories.length > 0 && (
+              <div className="mt-4 rounded-xl sm:rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3.5 sm:p-4 text-xs text-amber-200">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 rounded-full bg-amber-400/20 p-1.5 text-amber-300 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 space-y-1 min-w-0">
+                    <p className="font-semibold text-amber-100 uppercase tracking-wider text-[11px]">
+                      Hardware Compatibility Advisory
+                    </p>
+                    <p className="text-amber-200/90 leading-relaxed text-xs">
+                      {result.hardware_advisories.some((a) => a.involves_reused)
+                        ? "One or more of your customer-provided components have potential hardware conflicts with store inventory. Please review the highlighted component cards below."
+                        : "One or more component pairings have advisories. Please review the highlighted component cards below."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="mt-5 sm:mt-6 grid gap-3 min-w-0">
               {Object.entries(result.build).map(([key, entry]) => {
                 if (!entry) return null;
@@ -1289,11 +1641,15 @@ export default function BuildResultPage() {
                 const hasMismatch = Boolean(advisory && advisory.has_mismatch);
                 const recommendedFixIdx = alternatives.findIndex((alt) => alt.is_recommended_fix);
 
+                const isReused = Boolean((mainComp as any).is_user_provided || (!mainComp.id && mainComp.price === 0));
+
                 return (
                   <div
                     key={key}
                     className={`group rounded-xl sm:rounded-2xl border p-3.5 sm:p-4 transition min-w-0 ${
-                      hasMismatch
+                      isReused
+                        ? "border-emerald-500/30 bg-emerald-500/[0.06] hover:bg-emerald-500/[0.09]"
+                        : hasMismatch
                         ? "border-amber-400/40 bg-gradient-to-b from-amber-400/[0.08] to-white/5"
                         : "border-white/10 bg-white/5 hover:bg-white/[0.08]"
                     }`}
@@ -1304,9 +1660,15 @@ export default function BuildResultPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                             <p className="text-[11px] sm:text-xs text-white/50">{meta.label}</p>
-                            <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-300">
-                              Main Option
-                            </span>
+                            {isReused ? (
+                              <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-300 border border-emerald-400/30">
+                                Reused Hardware (SDG 12)
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-300">
+                                Main Option
+                              </span>
+                            )}
                             {hasMismatch && (
                               <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-amber-300">
                                 Advisory
@@ -1316,13 +1678,18 @@ export default function BuildResultPage() {
                           <p className="mt-0.5 text-xs sm:text-sm font-semibold text-white break-words sm:truncate">
                             {mainComp.name ?? "Unknown"}
                           </p>
+                          {getCompSpecSnippet(key, mainComp) && getCompSpecSnippet(key, mainComp) !== "—" && (
+                            <p className={`text-[11px] mt-0.5 font-mono ${isReused ? "text-emerald-300/80 font-medium" : "text-white/45"}`}>
+                              {getCompSpecSnippet(key, mainComp)}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex xs:flex-col items-center xs:items-end justify-between xs:justify-start gap-1 shrink-0 pt-1 xs:pt-0 border-t xs:border-t-0 border-white/5">
-                        <span className="text-xs sm:text-sm font-semibold text-white">
-                          {mainComp.price ? fmt(Number(mainComp.price)) : "—"}
+                        <span className={`text-xs sm:text-sm font-semibold ${isReused ? "text-emerald-300 font-bold" : "text-white"}`}>
+                          {isReused ? "₱0 (Customer Provided)" : (mainComp.price ? fmt(Number(mainComp.price)) : "—")}
                         </span>
-                        {tier && (
+                        {tier && !isReused && (
                           <span
                             className={`rounded-full border px-2 py-0.5 text-[9px] sm:text-[10px] uppercase tracking-wider ${tierClass}`}
                           >
@@ -1332,7 +1699,7 @@ export default function BuildResultPage() {
                       </div>
                     </div>
 
-                    {/* Mismatch Advisory Banner (e.g. Air Cooler on High TDP CPU) */}
+                    {/* Mismatch Advisory Banner */}
                     {hasMismatch && (
                       <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-200 min-w-0">
                         <div className="flex items-start gap-2.5 min-w-0">
@@ -1346,14 +1713,14 @@ export default function BuildResultPage() {
                           <div className="flex-1 min-w-0 space-y-1.5">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-amber-100 uppercase tracking-wider text-[10px] break-words">
-                                Thermal Advisory &bull; High-TDP CPU ({advisory?.cpu_tdp ?? 125}W)
+                                {advisory?.title ?? (advisory?.cpu_tdp ? `Thermal Advisory • High-TDP CPU (${advisory.cpu_tdp}W)` : "Hardware Advisory")}
                               </span>
                               <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[9px] font-medium text-amber-300">
-                                User Choice Honored
+                                {isReused ? "Customer Hardware" : advisory?.cpu_tdp ? "User Choice Honored" : "Review Needed"}
                               </span>
                             </div>
                             <p className="text-amber-200/90 text-xs leading-relaxed break-words">
-                              {advisory?.reason ?? "This CPU runs hot enough that air cooling may struggle — here's a liquid option instead."}
+                              {advisory?.reason ?? "Please review this component pairing for potential hardware conflict."}
                             </p>
                             <div className="flex flex-wrap items-center gap-2 pt-1">
                               {recommendedFixIdx !== -1 && (
@@ -1365,12 +1732,14 @@ export default function BuildResultPage() {
                                   <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>
                                   </svg>
-                                  <span>Swap to Recommended Liquid Cooler</span>
+                                  <span>{advisory?.cpu_tdp ? "Swap to Recommended Liquid Cooler" : "Swap to In-Stock Option"}</span>
                                 </button>
                               )}
-                              <span className="text-[10px] text-amber-300/70 italic">
-                                Original Air pick remains selectable and saved.
-                              </span>
+                              {advisory?.cpu_tdp && (
+                                <span className="text-[10px] text-amber-300/70 italic">
+                                  Original Air pick remains selectable and saved.
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>

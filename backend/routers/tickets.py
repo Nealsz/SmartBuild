@@ -105,6 +105,11 @@ def _adjust_build_stock(build_data: dict[str, Any], delta: int):
         if not isinstance(comp_dict, dict):
             continue
 
+        # Skip customer-provided / reused components (they don't come from store inventory)
+        if comp_dict.get("is_user_provided") or not comp_dict.get("id"):
+            logger.info(f"[Stock Adjust] Skipping customer-reused component: {comp_dict.get('name')} ({key})")
+            continue
+
         item_id = comp_dict.get("id")
         item_name = comp_dict.get("name")
         candidate_tables = TABLE_NAME_MAP.get(key, [key])

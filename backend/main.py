@@ -170,6 +170,7 @@ async def supabase_database_webhook(
 @app.post("/generate-build")
 def generate_build(user: UserInput):
     try:
+        reused_list = [c.model_dump() if hasattr(c, "model_dump") else c for c in (user.reused_components or [])]
         res = recommender_generate_build(
             budget_min=user.min_budget,
             budget_max=user.max_budget,
@@ -179,6 +180,7 @@ def generate_build(user: UserInput):
             primary_subcategory=user.primary_subcategory,
             secondary_subcategory=user.secondary_subcategory,
             cooling_preference=user.cooling_preference,
+            reused_components=reused_list,
         )
         try:
             from services.builder_service import generate_side_builds
@@ -199,6 +201,17 @@ def generate_build(user: UserInput):
         return res
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e))
+
+
+@app.post("/lookup-component-specs")
+def lookup_component_specs_endpoint(req: dict):
+    """
+    Look up technical specifications for an external / user-provided component.
+    """
+    from services.spec_resolver import resolve_component_specs
+    category = req.get("category", "")
+    name = req.get("name", "")
+    return resolve_component_specs(category, name)
 
 
 @app.post("/builder/category-options")

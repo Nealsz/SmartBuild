@@ -349,6 +349,7 @@ def generate_build(
     primary_subcategory:   str | None = None,
     secondary_subcategory: str | None = None,
     cooling_preference:     str | None = None,
+    reused_components:      list[dict] | None = None,
 ) -> dict:
     start_time = time.time()
 
@@ -421,16 +422,109 @@ def generate_build(
         psu_min_watt = build.pop("psu_min_watt")
         psu_max_watt = build.pop("psu_max_watt")
 
+    # SDG 12: Inject customer-provided reused components & lock price at ₱0
+    sdg12_metrics = None
+    if reused_components:
+        EWASTE_WEIGHT_MAP = {
+            "case": 5.2,
+            "psu": 1.9,
+            "gpu": 1.1,
+            "motherboard": 0.8,
+            "cpu_cooler": 0.6,
+            "storage": 0.15,
+            "ram": 0.08,
+            "cpu": 0.05,
+            "case_fan": 0.15,
+        }
+        diverted_kg = 0.0
+        normalized_reused = []
+        from services.spec_resolver import resolve_component_specs
+
+        for rc in reused_components:
+            raw_cat = str(rc.get("category", "")).strip().lower()
+            cat = "cpu_cooler" if "cooler" in raw_cat else ("case_fan" if "fan" in raw_cat else raw_cat)
+            name = str(rc.get("name", "")).strip() or "Reused Component"
+            if cat in build:
+                resolved_specs = resolve_component_specs(cat, name)
+                if isinstance(rc.get("specs"), dict):
+                    resolved_specs.update(rc["specs"])
+
+                build[cat] = {
+                    "main": resolved_specs,
+                    "alternatives": [],
+                }
+                w = EWASTE_WEIGHT_MAP.get(cat, 0.5)
+                diverted_kg += w
+                normalized_reused.append({
+                    "category": cat,
+                    "name": name,
+                    "weight_kg": w,
+                    "spec_snippet": resolved_specs.get("spec_snippet", ""),
+                })
+
+        sdg12_metrics = {
+            "is_eco_build": True,
+            "reused_count": len(normalized_reused),
+            "ewaste_diverted_kg": round(diverted_kg, 2),
+            "reused_components": normalized_reused,
+        }
+
     # Step 4 — Compatibility check (uses main picks only)
     build_mains = {k: v["main"] for k, v in build.items() if isinstance(v, dict)}
     compat_results = check_compatibility(build_mains, psu_min_watt, psu_max_watt)
     compatibility  = summarise(compat_results)
 
-    # Step 5 — Budget summary (main picks only)
+    # Step 4.1 — Hardware Compatibility Advisories
+    hardware_advisories = []
+    reused_cat_set = {
+        ("cpu_cooler" if "cooler" in str(rc.get("category", "")).lower() else ("case_fan" if "fan" in str(rc.get("category", "")).lower() else str(rc.get("category", "")).strip().lower()))
+        for rc in (reused_components or [])
+    }
+
+    RULE_CAT_MAP = {
+        "CPU ↔ Motherboard Socket": ["cpu", "motherboard"],
+        "RAM ↔ Motherboard DDR Gen": ["ram", "motherboard"],
+        "RAM Capacity ≤ Motherboard Max Memory": ["ram", "motherboard"],
+        "Motherboard Form Factor ↔ Case": ["motherboard", "case"],
+        "PSU Wattage ≥ System TDP + 20% Headroom": ["psu", "gpu"],
+        "CPU Cooler ↔ CPU TDP": ["cpu_cooler", "cpu"],
+    }
+
+    for status, rule, detail in compat_results:
+        if status in ("FAIL", "WARN"):
+            cats = RULE_CAT_MAP.get(rule, [])
+            involves_reused = any(c in reused_cat_set for c in cats)
+            adv_title = f"Compatibility Advisory • {rule}"
+            adv_reason = detail
+            if involves_reused and "Socket" in rule:
+                adv_reason = f"{detail}. Note: Store inventory currently carries modern AM4, AM5, and LGA1700 processors."
+
+            hardware_advisories.append({
+                "rule": rule,
+                "status": status,
+                "title": adv_title,
+                "message": adv_reason,
+                "involves_reused": involves_reused,
+                "categories": cats,
+            })
+
+            for c in cats:
+                if c in build and isinstance(build[c], dict) and build[c].get("main"):
+                    m = build[c]["main"]
+                    if isinstance(m, dict) and not m.get("mismatch_advisory"):
+                        m["mismatch_advisory"] = {
+                            "has_mismatch": True,
+                            "type": "compatibility_issue",
+                            "title": adv_title,
+                            "reason": adv_reason,
+                            "override_allowed": True,
+                        }
+
+    # Step 5 — Budget summary (main picks only, customer reused parts cost ₱0)
     total = sum(
         float(v["main"].get("price", 0))
         for v in build.values()
-        if isinstance(v, dict) and v["main"] is not None
+        if isinstance(v, dict) and v["main"] is not None and not (isinstance(v["main"], dict) and v["main"].get("is_user_provided"))
     )
 
     budget_within = (budget_min * 0.985 <= total <= budget_max * 1.015)
@@ -491,12 +585,55 @@ def generate_build(
 
     # Serialise pandas Series → plain dicts for JSON response
     # Each build key is {"main": Series, "alternatives": [Series, ...]}
-    def _serialise_row(row) -> dict | None:
+    def _generate_spec_snippet(cat: str, d: dict) -> str:
+        if not d:
+            return ""
+        if d.get("spec_snippet"):
+            return str(d["spec_snippet"])
+        if cat == "cpu":
+            cores = f"{int(d.get('core_count', 0))}C" if d.get("core_count") else ""
+            threads = f"/{int(d.get('thread_count', 0))}T" if d.get("thread_count") else ""
+            clock = f" • {d.get('boost_clock')}GHz" if d.get("boost_clock") else (f" • {d.get('core_clock')}GHz" if d.get("core_clock") else "")
+            return f"{cores}{threads}{clock}".lstrip(" •") or str(d.get("socket", ""))
+        elif cat == "gpu":
+            vram = f"{int(float(d.get('memory', 0)))}GB VRAM" if d.get("memory") else ""
+            chip = f" • {d.get('chipset')}" if d.get("chipset") else ""
+            return f"{vram}{chip}".lstrip(" •") or "Discrete Graphics"
+        elif cat == "ram":
+            cap = f"{int(float(d.get('total_capacity_gb', 0)))}GB" if d.get("total_capacity_gb") else ""
+            gen = f" {d.get('ddr_gen')}" if d.get("ddr_gen") else ""
+            spd = f" • {int(float(d.get('speed_mhz', 0)))}MHz" if d.get("speed_mhz") else ""
+            return f"{cap}{gen}{spd}".lstrip(" •") or "System Memory"
+        elif cat == "storage":
+            c = float(d.get("capacity", 0))
+            cap = f"{int(c / 1000)}TB" if c >= 1000 else (f"{int(c)}GB" if c > 0 else "")
+            stype = f" • {d.get('type')}" if d.get("type") else ""
+            return f"{cap}{stype}".lstrip(" •") or "High-Speed Storage"
+        elif cat == "psu":
+            w = f"{int(float(d.get('wattage', 0)))}W" if d.get("wattage") else ""
+            eff = f" • {d.get('efficiency_rating') or d.get('efficiency', '')}" if (d.get("efficiency_rating") or d.get("efficiency")) else ""
+            return f"{w}{eff}".lstrip(" •") or "ATX Power Supply"
+        elif cat == "motherboard":
+            sock = str(d.get("socket", ""))
+            ff = f" • {d.get('form_factor')}" if d.get("form_factor") else ""
+            return f"{sock}{ff}".lstrip(" •") or "System Motherboard"
+        elif cat == "case":
+            return str(d.get("type") or d.get("form_factor") or "Mid Tower Chassis")
+        elif cat == "cpu_cooler":
+            size = f"{int(float(d.get('size', 0)))}mm" if d.get("size") else ""
+            is_liq = "LIQUID" in str(d.get("name", "")).upper()
+            return f"{size} {'Liquid AIO' if is_liq else 'Air Cooler'}".strip()
+        elif cat == "case_fan":
+            return f"{d.get('airflow_cfm')} CFM Airflow" if d.get("airflow_cfm") else "120mm Chassis Fan"
+        return ""
+
+    def _serialise_row(row, cat: str = "") -> dict | None:
         if row is None:
             return None
-        if isinstance(row, pd.Series):
-            return row.where(pd.notna(row), None).to_dict()
-        return row
+        d = row.where(pd.notna(row), None).to_dict() if isinstance(row, pd.Series) else dict(row)
+        if cat and not d.get("spec_snippet"):
+            d["spec_snippet"] = _generate_spec_snippet(cat, d)
+        return d
 
     build_serialised = {}
     for key, entry in build.items():
@@ -504,11 +641,11 @@ def generate_build(
             # scalar metadata (shouldn't reach here after pop, but guard)
             continue
         build_serialised[key] = {
-            "main":         _serialise_row(entry.get("main")),
-            "alternatives": [_serialise_row(alt) for alt in entry.get("alternatives", [])],
+            "main":         _serialise_row(entry.get("main"), key),
+            "alternatives": [_serialise_row(alt, key) for alt in entry.get("alternatives", [])],
         }
 
-    return {
+    response_dict = {
         "tiers":         tiers,
         "build":         build_serialised,
         "total":         round(total, 2),
@@ -516,6 +653,11 @@ def generate_build(
         "compatibility": compatibility,
         "evaluation":    evaluation,
     }
+    if sdg12_metrics:
+        response_dict["sdg12_metrics"] = sdg12_metrics
+    if hardware_advisories:
+        response_dict["hardware_advisories"] = hardware_advisories
+    return response_dict
 
 
 def get_cheapest_compatible_build(force_recalculate: bool = False) -> dict:

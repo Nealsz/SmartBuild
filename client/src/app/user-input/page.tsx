@@ -263,6 +263,7 @@ const RESOLUTION_OPTIONS = [
 ];
 
 const STEPS = [
+  "reused-parts",
   "budget",
   "primary",
   "primary-sub",
@@ -274,6 +275,7 @@ const STEPS = [
 type Step = (typeof STEPS)[number];
 
 const STEP_LABELS: Record<Step, string> = {
+  "reused-parts": "Old Parts",
   budget:        "Budget",
   primary:       "Primary",
   "primary-sub": "Sub-Category",
@@ -283,6 +285,17 @@ const STEP_LABELS: Record<Step, string> = {
   resolution:    "Display",
 };
 
+const REUSE_CATEGORIES = [
+  { value: "gpu", label: "Graphics Card (GPU)", hint: "e.g. GTX 1660 Super, RTX 2060, RX 580" },
+  { value: "ram", label: "Memory (RAM)", hint: "e.g. 16GB (2x8GB) DDR4 3200MHz" },
+  { value: "storage", label: "Storage (SSD / HDD)", hint: "e.g. Samsung 970 EVO 500GB, 1TB Seagate HDD" },
+  { value: "psu", label: "Power Supply (PSU)", hint: "e.g. Corsair CV550 550W Bronze" },
+  { value: "case", label: "PC Case (Chassis)", hint: "e.g. NZXT H510, Tecware Forge M" },
+  { value: "cpu", label: "Processor (CPU)", hint: "e.g. Ryzen 5 3600, Core i5-10400" },
+  { value: "motherboard", label: "Motherboard", hint: "e.g. B450M Mortar Max, B560M Pro" },
+  { value: "cpu_cooler", label: "CPU Cooler", hint: "e.g. Deepcool Gammaxx 400, Peerless Assassin" },
+];
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export default function UserInputPage() {
@@ -290,6 +303,16 @@ export default function UserInputPage() {
 
   const [step, setStep] = useState<Step>("budget");
   const [animState, setAnimState] = useState<"visible" | "exit" | "enter">("visible");
+
+  // SDG 12: Reused Components State
+  const [isReuseMode, setIsReuseMode] = useState(false);
+  const [reusedComponents, setReusedComponents] = useState<
+    Array<{ id: string; category: string; name: string; specSnippet?: string; specs?: Record<string, any> }>
+  >([]);
+  const [selectedReuseCategory, setSelectedReuseCategory] = useState("gpu");
+  const [reuseComponentName, setReuseComponentName] = useState("");
+  const [reuseError, setReuseError] = useState("");
+  const [isResolvingSpecs, setIsResolvingSpecs] = useState(false);
 
   const [minBudget, setMinBudget] = useState("");
   const [maxBudget, setMaxBudget] = useState("");
@@ -308,6 +331,17 @@ export default function UserInputPage() {
 
   const minRef = useRef<HTMLInputElement>(null);
   const maxRef = useRef<HTMLInputElement>(null);
+
+  // Check URL query parameters for mode=reuse
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("mode") === "reuse") {
+        setIsReuseMode(true);
+        setStep("reused-parts");
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetch(`${API_BASE}/min-compatible-budget`)
@@ -343,6 +377,10 @@ export default function UserInputPage() {
           if (saved.secondary_subcategory) setSecondarySubcategory(saved.secondary_subcategory ?? "Standard");
           if (saved.cooling_preference) setCoolingPreference(saved.cooling_preference);
           if (saved.resolution_target) setResolutionTarget(saved.resolution_target);
+          if (saved.reused_components && saved.reused_components.length > 0) {
+            setIsReuseMode(true);
+            setReusedComponents(saved.reused_components.map((c: any, idx: number) => ({ id: String(idx), ...c })));
+          }
           // Jump straight to the last step
           setStep("resolution");
         } catch {
@@ -376,13 +414,75 @@ export default function UserInputPage() {
     }, 350);
   };
 
+  const handleAddReusedPart = async () => {
+    if (!reuseComponentName.trim()) {
+      setReuseError("Please specify the model name of your old component.");
+      return;
+    }
+    if (reusedComponents.some((c) => c.category === selectedReuseCategory)) {
+      const catLabel = REUSE_CATEGORIES.find((rc) => rc.value === selectedReuseCategory)?.label || selectedReuseCategory;
+      setReuseError(`You already added a ${catLabel}. Remove it first to change it.`);
+      return;
+    }
+
+    const currentCat = selectedReuseCategory;
+    const currentName = reuseComponentName.trim();
+    setIsResolvingSpecs(true);
+    setReuseError("");
+
+    let snippet = "";
+    let specsData: any = null;
+    try {
+      const res = await fetch(`${API_BASE}/lookup-component-specs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: currentCat, name: currentName }),
+      });
+      if (res.ok) {
+        specsData = await res.json();
+        snippet = specsData.spec_snippet || "";
+      }
+    } catch {
+      // fallback
+    } finally {
+      setIsResolvingSpecs(false);
+    }
+
+    setReusedComponents((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        category: currentCat,
+        name: currentName,
+        specSnippet: snippet,
+        specs: specsData,
+      },
+    ]);
+    setReuseComponentName("");
+    setReuseError("");
+  };
+
+  const handleRemoveReusedPart = (id: string) => {
+    setReusedComponents(reusedComponents.filter((c) => c.id !== id));
+  };
+
+  const handleReusedProceed = () => {
+    if (reusedComponents.length === 0) {
+      setReuseError("Please add at least one component you already own, or switch to standard build.");
+      return;
+    }
+    setReuseError("");
+    transitionTo("budget");
+  };
+
   const validateBudget = (): boolean => {
     const min = parseBudget(minBudget);
     const max = parseBudget(maxBudget);
     if (min <= 0) { setBudgetError("Please enter a minimum budget."); return false; }
     if (max <= 0) { setBudgetError("Please enter a maximum budget."); return false; }
     if (max < min) { setBudgetError("Maximum must be ≥ minimum."); return false; }
-    if (baseMaxBudget !== null && max < baseMaxBudget) {
+    // Only enforce complete minimum baseline if user is NOT reusing parts
+    if (!isReuseMode && baseMaxBudget !== null && max < baseMaxBudget) {
       setBudgetError(`Budget is below the minimum for a compatible build (${baseFormattedBudget}).`);
       return false;
     }
@@ -404,6 +504,13 @@ export default function UserInputPage() {
     secondary_subcategory: secondaryActivity ? secondarySubcategory : "Standard",
     cooling_preference: coolingPreference,
     resolution_target: resolutionTarget,
+    reused_components: isReuseMode
+      ? reusedComponents.map((rc) => ({
+          category: rc.category,
+          name: rc.name,
+          specs: rc.specs,
+        }))
+      : [],
   });
 
   const handleSubmit = async () => {
@@ -442,6 +549,7 @@ export default function UserInputPage() {
 
   const activeSteps = useMemo<Step[]>(() => {
     return [
+      ...(isReuseMode ? (["reused-parts"] as const) : []),
       "budget",
       "primary",
       "primary-sub",
@@ -450,7 +558,7 @@ export default function UserInputPage() {
       "cooling",
       "resolution",
     ];
-  }, [secondaryActivity]);
+  }, [isReuseMode, secondaryActivity]);
 
   const stepIndex = Math.max(0, activeSteps.indexOf(step));
   const progress = ((stepIndex + 1) / activeSteps.length) * 100;
@@ -532,15 +640,210 @@ export default function UserInputPage() {
           className={`rounded-2xl sm:rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7 shadow-[0_30px_120px_-80px_rgba(251,191,36,0.4)] backdrop-blur ${slideClass}`}
           style={{ transition: "opacity 350ms ease, transform 350ms ease" }}
         >
+          {/* ── STEP 0: REUSED COMPONENTS (SDG 12) ─────────────── */}
+          {step === "reused-parts" && (
+            <div className="grid gap-5">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="rounded-full border border-emerald-400/40 bg-emerald-400/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                    SDG 12 • E-Waste Reduction &amp; Circular Tech
+                  </span>
+                </div>
+                <h2 className="font-heading text-2xl">What old parts do you want to keep?</h2>
+                <p className="mt-1 text-sm text-white/50">
+                  Enter any working components you already have. We&apos;ll lock them into your build at ₱0 and configure only the missing compatible components from the store.
+                </p>
+              </div>
+
+              {/* Add part form */}
+              <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 sm:p-5 flex flex-col gap-3">
+                <div className="grid sm:grid-cols-[1.2fr_1.8fr] gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-slate-200/70 uppercase tracking-widest">
+                      Component Type
+                    </label>
+                    <select
+                      value={selectedReuseCategory}
+                      onChange={(e) => {
+                        setSelectedReuseCategory(e.target.value);
+                        setReuseError("");
+                      }}
+                      className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white focus:border-emerald-400/60 focus:outline-none transition cursor-pointer"
+                    >
+                      {REUSE_CATEGORIES.map((cat) => (
+                        <option key={cat.value} value={cat.value} className="bg-slate-900 text-white">
+                          {cat.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-slate-200/70 uppercase tracking-widest">
+                      Model / Specification
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={reuseComponentName}
+                        onChange={(e) => {
+                          setReuseComponentName(e.target.value);
+                          setReuseError("");
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleAddReusedPart();
+                        }}
+                        placeholder={
+                          REUSE_CATEGORIES.find((c) => c.value === selectedReuseCategory)?.hint ||
+                          "e.g. GTX 1660 Super"
+                        }
+                        className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-emerald-400/60 focus:outline-none transition"
+                      />
+                      <button
+                        type="button"
+                        disabled={isResolvingSpecs}
+                        onClick={handleAddReusedPart}
+                        className="rounded-2xl bg-emerald-400 px-5 text-xs font-bold text-slate-950 hover:bg-emerald-300 transition shrink-0 cursor-pointer shadow-md shadow-emerald-500/20 disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {isResolvingSpecs ? (
+                          <>
+                            <span className="animate-spin inline-block h-3 w-3 border-2 border-slate-950 border-t-transparent rounded-full" />
+                            Detecting...
+                          </>
+                        ) : (
+                          "+ Add Part"
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {reuseError && (
+                  <p className="text-xs text-red-400 flex items-center gap-1.5 mt-1">
+                    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {reuseError}
+                  </p>
+                )}
+              </div>
+
+              {/* Added parts list */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between text-xs text-white/50 px-1">
+                  <span>Your Reusable Hardware ({reusedComponents.length})</span>
+                  {reusedComponents.length > 0 && (
+                    <span className="text-emerald-300 font-medium">
+                      Estimated e-waste diverted: ~{(reusedComponents.length * 1.4).toFixed(1)} kg
+                    </span>
+                  )}
+                </div>
+
+                {reusedComponents.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center text-xs text-white/40">
+                    No components added yet. Select a component type and enter the model above (e.g., your old GPU, RAM, or PC Case).
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    {reusedComponents.map((item) => {
+                      const catInfo = REUSE_CATEGORIES.find((c) => c.value === item.category);
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs text-white"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 pr-2">
+                            <div className="min-w-0">
+                              <span className="text-[10px] uppercase tracking-wider text-emerald-300/80 block font-semibold">
+                                {catInfo?.label || item.category}
+                              </span>
+                              <span className="font-medium text-white truncate block">
+                                {item.name}
+                              </span>
+                              {item.specSnippet && (
+                                <span className="text-[11px] text-emerald-300 font-mono flex items-center gap-1 mt-0.5">
+                                  <span className="text-emerald-400 font-semibold">Specs:</span>
+                                  <span className="text-white/80">{item.specSnippet}</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="rounded bg-emerald-400/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                              Locked at ₱0
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveReusedPart(item.id)}
+                              className="rounded-lg p-1 text-white/40 hover:bg-white/10 hover:text-red-300 transition"
+                              title="Remove part"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsReuseMode(false);
+                    setReusedComponents([]);
+                    transitionTo("budget");
+                  }}
+                  className="text-xs text-white/40 hover:text-white/70 transition flex items-center justify-center sm:justify-start gap-1.5 py-2 px-1 cursor-pointer"
+                >
+                  I don&apos;t have old parts (Switch to brand new build)
+                </button>
+                <button
+                  type="button"
+                  id="reused-next-btn"
+                  onClick={handleReusedProceed}
+                  className="flex h-11 items-center justify-center gap-2 rounded-full bg-emerald-400 px-7 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-300 transition w-full sm:w-auto cursor-pointer"
+                >
+                  Continue to Budget
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m9 18 6-6-6-6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ── STEP 1: BUDGET ─────────────────────────────────── */}
           {step === "budget" && (
             <div className="grid gap-5">
               <div>
                 <h2 className="font-heading text-2xl">What&apos;s your budget?</h2>
                 <p className="mt-1 text-sm text-white/50">
-                  Set the minimum and maximum amount you&apos;re willing to spend. The AI will maximize performance within this range.
+                  {isReuseMode
+                    ? "Set your budget for the missing store components. Reused parts will cost ₱0."
+                    : "Set the minimum and maximum amount you're willing to spend. The AI will maximize performance within this range."}
                 </p>
               </div>
+
+              {isReuseMode && (
+                <div className="flex items-center justify-between rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-xs text-emerald-200">
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <span className="font-semibold text-emerald-300">SDG 12 Eco-Build Active:</span> Reusing {reusedComponents.length} part(s). Set your budget for the remaining store parts!
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => transitionTo("reused-parts")}
+                    className="text-[11px] underline text-emerald-300 hover:text-white transition cursor-pointer"
+                  >
+                    Edit parts
+                  </button>
+                </div>
+              )}
 
               <div className="grid sm:grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
@@ -588,6 +891,7 @@ export default function UserInputPage() {
                   {baseMaxBudget !== null ? (
                     <span>
                       Minimum compatible build: <strong className="font-semibold text-white">{baseFormattedBudget}</strong>
+                      {isReuseMode && <span className="text-[11px] text-emerald-300 ml-1.5">(Can be lower with reused parts)</span>}
                     </span>
                   ) : (
                     <span className="flex items-center gap-2">
@@ -627,11 +931,22 @@ export default function UserInputPage() {
               )}
 
               <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
-                <p className="text-center sm:text-left text-xs text-white/30">
-                  Press{" "}
-                  <kbd className="rounded border border-white/20 bg-white/10 px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd>{" "}
-                  to continue
-                </p>
+                {isReuseMode ? (
+                  <button
+                    type="button"
+                    onClick={() => transitionTo("reused-parts")}
+                    className="text-xs text-white/40 hover:text-white/70 transition flex items-center justify-center sm:justify-start gap-1.5 py-2 px-1 cursor-pointer"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    Back to Old Parts
+                  </button>
+                ) : (
+                  <p className="text-center sm:text-left text-xs text-white/30">
+                    Press{" "}
+                    <kbd className="rounded border border-white/20 bg-white/10 px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd>{" "}
+                    to continue
+                  </p>
+                )}
                 <button
                   type="button"
                   id="budget-next-btn"

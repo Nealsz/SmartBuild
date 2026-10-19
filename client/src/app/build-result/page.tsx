@@ -28,6 +28,7 @@ type ComponentData = Record<string, unknown> & {
   mismatch_advisory?: {
     has_mismatch?: boolean;
     type?: string;
+    title?: string;
     reason?: string;
     cpu_tdp?: number;
     override_allowed?: boolean;

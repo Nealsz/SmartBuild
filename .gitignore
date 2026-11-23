@@ -1,4 +1,4 @@
-# Environment Variables and Security
+# ── Environment Variables and Secrets ──────────────────────────────────────────
 .env
 .env.*
 *.pem
@@ -6,48 +6,85 @@
 credentials.json
 secrets.json
 
-# Virtual Environments
+# ── Python Virtual Environments ────────────────────────────────────────────────
 smartbuild-env/
 venv/
 env/
 .venv/
 
-# Data Files & Databases
-data/
-backend/data/
-*.csv
-*.sqlite3
-
-# Python
+# ── Python Bytecode & Cache ────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
 
-# Node.js
-node_modules/
-.next/
-out/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# ── Trained ML Model Artifacts ─────────────────────────────────────────────────
+# (large binary files; regenerate with model_training scripts)
+backend/model/*.pkl
+backend/model/*.joblib
 
-# Logs & Temporary Files
-*.log
-*.tmp
+# ── Data Files & Databases ─────────────────────────────────────────────────────
+data/
+backend/data/
+*.csv
+*.sqlite3
+*.db
 
-# IDE & Editor Configurations
-.vscode/
-.idea/
-*.code-workspace
-
-# Operating System Files
-.DS_Store
-Thumbs.db
-
-# Non-Runtime Categorized Folders (Offline Tools, Evaluations, Training)
+# ── Offline / Dev-Only Tool Folders ────────────────────────────────────────────
+# (not needed in production; run locally only)
 evaluations/
 data_tools/
 model_training/
 scripts/
 backend/scripts/
+
+# ── Thesis Paper & Research Documents ─────────────────────────────────────────
+# (not part of the codebase; store separately)
+thesis paper/
+
+# ── One-off / Scratch Scripts ─────────────────────────────────────────────────
+apply_revisions.py
+revise_manuscript.py
+update_docx.py
+extracted_docx_text.txt
+
+# ── Node.js ────────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun.lock
+
+# ── Next.js Build Output ───────────────────────────────────────────────────────
+.next/
+out/
+
+# ── Logs & Temporary Files ─────────────────────────────────────────────────────
+*.log
+*.tmp
+*.temp
+
+# ── IDE & Editor Configs ───────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.code-workspace
+
+# ── OS-Generated Files ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Evaluation Results (auto-generated; not source code) ──────────────────────
+evaluations/test_all_choices_results.json
+evaluations/figures/
+MODEL_EVALUATION_REPORT.md
+
+# ── TypeScript Build Info ──────────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ── Package Manager Locks (keep package-lock.json; ignore others if redundant) ─
+package-lock.json
+bun.lockb

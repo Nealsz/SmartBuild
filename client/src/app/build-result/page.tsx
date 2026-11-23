@@ -583,13 +583,14 @@ export default function BuildResultPage() {
           <div class="flex items-center justify-between pt-0.5">
             <div class="flex items-center gap-2">
               <h2 class="font-heading text-sm font-bold uppercase tracking-wider text-white">Component Breakdown</h2>
-              <span class="text-[11px] text-white/40 font-normal">— Selected Components</span>
+              <span class="text-[11px] text-white/40 font-normal">— Selected Components &amp; Prices</span>
             </div>
             <span class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[9px] uppercase tracking-widest text-emerald-200 font-medium">Build</span>
           </div>`,
       });
 
-      // 4. Component Cards (ONLY the final selected picks)
+      // 4. Component rows — ONLY the currently-selected main pick per category
+      //    (respects any swaps the user made before downloading)
       const ORDERED_CATS = ["cpu", "gpu", "motherboard", "ram", "storage", "psu", "case", "cpu_cooler", "case_fan"];
       let totalCost = 0;
 
@@ -597,6 +598,7 @@ export default function BuildResultPage() {
         const entry = result.build[cat];
         if (!entry) continue;
 
+        // Always resolve the .main pick — this is the component the user has selected
         const comp: ComponentData | null =
           entry && typeof entry === "object" && "main" in entry
             ? (entry as ComponentGroup).main
@@ -604,132 +606,109 @@ export default function BuildResultPage() {
         if (!comp) continue;
 
         const isReused = Boolean((comp as any).is_user_provided || (!comp.id && comp.price === 0));
-        const compPrice = isReused ? 0 : (comp.price ?? 0);
-        totalCost += Number(compPrice);
+        const compPrice = isReused ? 0 : Number(comp.price ?? 0);
+        totalCost += compPrice;
+
         const label = COMPONENT_LABELS[cat]?.label ?? cat.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
         const name = String(comp.name ?? "—");
         const specs = getCompSpecSnippet(cat, comp);
         const tier = result.tiers[cat] ?? "";
 
-        const borderClass = isReused
-          ? "border-emerald-500/30 bg-emerald-500/[0.06]"
-          : "border-white/10 bg-white/5";
-
-        const priceHtml = isReused
-          ? `<span class="text-xs font-bold text-emerald-300">₱0 (Customer Provided)</span>`
-          : `<span class="text-xs font-semibold text-white">${compPrice > 0 ? fmt(Number(compPrice)) : "—"}</span>`;
-
-        const badgeHtml = isReused
-          ? `<span class="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-300 border border-emerald-400/30">Reused Hardware (SDG 12)</span>`
-          : `<span class="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-300">Main Option</span>`;
+        // ── Full spec details for the PDF ───────────────────────────
+        // Build a detailed spec list from raw component fields
+        const specDetails: string[] = [];
+        if (cat === "cpu") {
+          if (comp.core_count) specDetails.push(`${comp.core_count} Cores / ${comp.thread_count ?? Number(comp.core_count) * 2} Threads`);
+          if (comp.boost_clock) specDetails.push(`${comp.boost_clock} GHz Boost`);
+          if (comp.core_clock) specDetails.push(`${comp.core_clock} GHz Base`);
+          if (comp.socket) specDetails.push(`Socket ${comp.socket}`);
+          if (comp.tdp) specDetails.push(`${comp.tdp}W TDP`);
+        } else if (cat === "gpu") {
+          if (comp.memory) specDetails.push(`${comp.memory} GB VRAM`);
+          if (comp.chipset) specDetails.push(String(comp.chipset));
+          if (comp.boost_clock) specDetails.push(`${comp.boost_clock} MHz Boost`);
+        } else if (cat === "ram") {
+          if (comp.total_capacity_gb) specDetails.push(`${comp.total_capacity_gb} GB`);
+          if (comp.ddr_gen) specDetails.push(String(comp.ddr_gen));
+          if (comp.speed_mhz) specDetails.push(`${comp.speed_mhz} MHz`);
+        } else if (cat === "storage") {
+          const cap = comp.capacity ? (Number(comp.capacity) >= 1000 ? `${(Number(comp.capacity) / 1000).toFixed(0)} TB` : `${comp.capacity} GB`) : "";
+          if (cap) specDetails.push(cap);
+          if (comp.type) specDetails.push(String(comp.type));
+        } else if (cat === "psu") {
+          if (comp.wattage) specDetails.push(`${comp.wattage}W`);
+          if (comp.efficiency_rating ?? (comp as any).efficiency) specDetails.push(String(comp.efficiency_rating ?? (comp as any).efficiency));
+        } else if (cat === "motherboard") {
+          if (comp.socket) specDetails.push(`Socket ${comp.socket}`);
+          if (comp.form_factor) specDetails.push(String(comp.form_factor));
+          if (comp.max_memory) specDetails.push(`Max ${comp.max_memory} GB RAM`);
+          if ((comp as any).ddr_gen) specDetails.push(String((comp as any).ddr_gen));
+        } else if (cat === "case") {
+          if (comp.type ?? comp.form_factor) specDetails.push(String(comp.type ?? comp.form_factor));
+        } else if (cat === "cpu_cooler") {
+          if (comp.size) specDetails.push(`${comp.size} mm`);
+          specDetails.push(String(comp.name ?? "").toUpperCase().includes("LIQUID") ? "Liquid AIO" : "Air Cooler");
+        } else if (cat === "case_fan") {
+          if ((comp as any).airflow_cfm) specDetails.push(`${(comp as any).airflow_cfm} CFM`);
+        }
+        const specRowHtml = specDetails.length > 0
+          ? `<div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">${specDetails.map(s => `<span class="text-[10px] text-white/50 font-mono">${s}</span>`).join('<span class="text-white/20 text-[10px]">·</span>')}</div>`
+          : "";
 
         const tierBadge = tier && !isReused
           ? `<span class="rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-wider ${TIER_COLORS[tier] ?? TIER_COLORS.mid}">${tier}</span>`
           : "";
 
-        const specClass = isReused ? "text-emerald-300/80 font-medium" : "text-white/45";
+        const priceHtml = isReused
+          ? `<span class="text-sm font-bold text-emerald-300">₱0</span><span class="text-[9px] text-emerald-400/70 mt-0.5">Customer Provided</span>`
+          : `<span class="text-sm font-bold text-white">${compPrice > 0 ? fmt(compPrice) : "—"}</span>`;
+
+        const borderClass = isReused
+          ? "border-emerald-500/30 bg-emerald-500/[0.06]"
+          : "border-white/10 bg-white/[0.04]";
 
         blocks.push({
           html: `
-            <div class="rounded-xl border p-2.5 ${borderClass}">
-              <div class="flex items-start justify-between gap-3">
+            <div class="rounded-xl border p-3 ${borderClass}">
+              <div class="flex items-start justify-between gap-4">
                 <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-1.5 flex-wrap">
-                    <p class="text-[10px] text-white/50 uppercase tracking-wider font-medium">${label}</p>
-                    ${badgeHtml}
-                  </div>
-                  <p class="mt-0.5 text-xs font-semibold text-white leading-snug">${name}</p>
-                  ${specs && specs !== "—" ? `<p class="text-[10px] mt-0.5 font-mono ${specClass}">${specs}</p>` : ""}
+                  <p class="text-[9px] text-white/40 uppercase tracking-wider font-medium mb-0.5">${label}</p>
+                  <p class="text-xs font-semibold text-white leading-snug">${name}</p>
+                  ${specRowHtml}
                 </div>
-                <div class="flex flex-col items-end gap-1 shrink-0 pt-0.5">
+                <div class="flex flex-col items-end gap-1 shrink-0 text-right">
                   ${priceHtml}
                   ${tierBadge}
+                  ${isReused ? `<span class="rounded-full bg-emerald-400/20 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-emerald-300 border border-emerald-400/30">SDG 12</span>` : ""}
                 </div>
               </div>
             </div>`,
         });
       }
 
-      // 5. Total & Budget Fit
+      // 5. Total cost summary row
       const budgetOk = input
         ? (totalCost >= input.min_budget && totalCost <= input.max_budget)
         : result.budget_fit;
-
       const statusClasses = budgetOk
         ? "border-emerald-400/50 bg-emerald-400/20 text-emerald-200"
         : "border-red-400/50 bg-red-400/20 text-red-200";
 
       blocks.push({
         html: `
-          <div class="rounded-xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-slate-900/40 p-3.5 flex items-center justify-between">
+          <div class="rounded-xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-slate-900/40 p-3.5 flex items-center justify-between mt-1">
             <div>
-              <p class="text-[9px] uppercase tracking-widest font-semibold text-emerald-300/70">Estimated Total</p>
-              <p class="mt-0.5 font-heading text-xl font-bold text-white">${fmt(totalCost)}</p>
-              ${input ? `<p class="mt-0.5 text-[11px] text-emerald-200/60">Budget: ${fmt(input.min_budget)} – ${fmt(input.max_budget)}</p>` : ""}
+              <p class="text-[9px] uppercase tracking-widest font-semibold text-emerald-300/70">Total Build Cost</p>
+              <p class="mt-0.5 font-heading text-2xl font-bold text-white">${fmt(totalCost)}</p>
+              ${input ? `<p class="mt-0.5 text-[11px] text-white/40">Budget range: ${fmt(input.min_budget)} – ${fmt(input.max_budget)}</p>` : ""}
             </div>
-            <span class="rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider ${statusClasses}">
-              ${budgetOk ? "Within Budget" : "Over Budget"}
+            <span class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wider ${statusClasses}">
+              ${budgetOk ? "✓ Within Budget" : "⚠ Over Budget"}
             </span>
           </div>`,
       });
 
-      // 6. Compatibility Check Summary
-      if (result.compatibility) {
-        const co = result.compatibility;
-        const overallClass = co.overall === "PASS"
-          ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-200"
-          : co.overall === "WARN"
-          ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
-          : "border-red-400/40 bg-red-400/10 text-red-200";
-
-        let rulesHtml = "";
-        for (const d of co.details) {
-          const sc = STATUS_COLORS[d.status];
-          rulesHtml += `
-            <div class="rounded-lg border ${sc.border} ${sc.bg} px-2.5 py-1.5">
-              <div class="flex items-start gap-1.5">
-                <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${sc.dot}"></span>
-                <span class="text-[11px] font-semibold shrink-0 ${sc.text}">${d.status}</span>
-                <span class="text-[11px] text-white/60 flex-1">${d.rule}</span>
-              </div>
-              <p class="mt-0.5 text-[11px] text-white/70 pl-3">${d.detail}</p>
-            </div>`;
-        }
-
-        blocks.push({
-          html: `
-            <div class="rounded-xl border border-white/10 bg-white/5 p-3.5 flex flex-col gap-2">
-              <div class="flex items-center justify-between">
-                <h2 class="font-heading text-xs font-bold text-white uppercase tracking-wider">Compatibility Check</h2>
-                <span class="rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest ${overallClass}">
-                  ${co.overall === "PASS" ? "All Clear" : co.overall === "WARN" ? "Warnings" : "Issues Found"}
-                </span>
-              </div>
-              <div class="grid grid-cols-3 gap-2">
-                <div class="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center">
-                  <p class="font-heading text-sm font-bold text-emerald-300">${co.passed}</p>
-                  <p class="text-[8px] uppercase tracking-widest text-white/50 font-medium">Passed</p>
-                </div>
-                <div class="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center">
-                  <p class="font-heading text-sm font-bold text-amber-300">${co.warnings}</p>
-                  <p class="text-[8px] uppercase tracking-widest text-white/50 font-medium">Warnings</p>
-                </div>
-                <div class="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center">
-                  <p class="font-heading text-sm font-bold text-red-300">${co.failures}</p>
-                  <p class="text-[8px] uppercase tracking-widest text-white/50 font-medium">Failures</p>
-                </div>
-              </div>
-              ${co.details && co.details.length > 0 ? `
-                <div class="mt-0.5 flex flex-col gap-1">
-                  ${rulesHtml}
-                </div>
-              ` : ""}
-            </div>`,
-        });
-      }
-
-      // ── Paginate elements cleanly into A4 containers ─────────────
-      // Available height allows content to go down to 54px above the bottom
+      // ── Paginate blocks into A4 pages ────────────────────────────
       const MAX_PAGE_CONTENT_BOTTOM = PAGE_H - 54;
       let currentPage = createPage(0);
       pages.push(currentPage);
@@ -742,10 +721,8 @@ export default function BuildResultPage() {
 
         currentPage.body.appendChild(element);
 
-        // Calculate bottom position of the content
         const currentContentBottom = currentPage.body.offsetTop + currentPage.body.offsetHeight;
         const isOverflow = currentContentBottom > MAX_PAGE_CONTENT_BOTTOM;
-        // Avoid orphan heading: ensure at least 80px space remaining for at least 1 item
         const isOrphanHeading = Boolean(block.isHeading && (MAX_PAGE_CONTENT_BOTTOM - currentContentBottom < 80));
 
         if ((isOverflow || isOrphanHeading) && currentPage.body.children.length > 1) {
@@ -756,7 +733,7 @@ export default function BuildResultPage() {
         }
       }
 
-      // ── Set final footers with total page count ──────────────────
+      // ── Stamp page footers ───────────────────────────────────────
       const totalPages = pages.length;
       pages.forEach((p, idx) => {
         p.footer.innerHTML = `
@@ -768,18 +745,12 @@ export default function BuildResultPage() {
         `;
       });
 
-      // Wait for fonts & layout
-      if (document.fonts) {
-        await document.fonts.ready;
-      }
+      // ── Fonts + rAF settle ───────────────────────────────────────
+      if (document.fonts) await document.fonts.ready;
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-      // ── Render each page to jsPDF ────────────────────────────────
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "pt",
-        format: "a4",
-      });
+      // ── Render pages → jsPDF ─────────────────────────────────────
+      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
       const pdfWidth = 595.28;
       const pdfHeight = 841.89;
 
@@ -791,8 +762,7 @@ export default function BuildResultPage() {
           backgroundColor: "#020617",
           logging: false,
         });
-        const imgData = canvas.toDataURL("image/png");
-        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pdfWidth, pdfHeight);
       }
 
       pdf.save("SmartBuild-Recommendation.pdf");

@@ -50,6 +50,7 @@ apply_revisions.py
 revise_manuscript.py
 update_docx.py
 extracted_docx_text.txt
+backend/migrations/full_schema_restore.sql
 
 # ── Node.js ────────────────────────────────────────────────────────────────────
 node_modules/

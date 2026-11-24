@@ -460,137 +460,115 @@ export default function BuildResultPage() {
     host.style.cssText = "position:fixed;left:-9999px;top:0;width:820px;z-index:-9999;pointer-events:none;";
     document.body.appendChild(host);
 
-    interface PageEntry {
-      page: HTMLDivElement;
-      header: HTMLDivElement;
-      body: HTMLDivElement;
-      footer: HTMLDivElement;
-    }
+    const page = document.createElement("div");
+    page.style.cssText = `width:${PAGE_W}px;height:${PAGE_H}px;box-sizing:border-box;padding:26px 36px 52px 36px;background:#020617;color:#ffffff;display:flex;flex-direction:column;position:relative;overflow:hidden;`;
+    page.className = "bg-slate-950 text-white font-sans antialiased";
 
-    const pages: PageEntry[] = [];
+    // Header
+    const header = document.createElement("div");
+    header.className = "shrink-0 mb-2";
+    header.innerHTML = `
+      <div class="flex items-center justify-between border-b border-white/10 pb-2">
+        <div class="flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+          <span class="text-xs uppercase tracking-[0.25em] font-semibold text-emerald-300">SmartBuild AI Recommendation</span>
+        </div>
+        <span class="text-xs text-white/40">${new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</span>
+      </div>
+      <h1 class="mt-2 font-heading text-xl font-bold tracking-tight text-white">Your PC Build — Selected Components</h1>
+    `;
+    page.appendChild(header);
 
-    const createPage = (pageIndex: number): PageEntry => {
-      const page = document.createElement("div");
-      page.style.cssText = `width:${PAGE_W}px;height:${PAGE_H}px;box-sizing:border-box;padding:28px 36px 48px 36px;background:#020617;color:#ffffff;display:flex;flex-direction:column;position:relative;overflow:hidden;`;
-      page.className = "bg-slate-950 text-white font-sans antialiased";
+    const body = document.createElement("div");
+    body.className = "flex flex-col gap-2 flex-1";
+    page.appendChild(body);
 
-      const header = document.createElement("div");
-      header.className = "shrink-0 mb-2.5";
-      if (pageIndex === 0) {
-        header.innerHTML = `
-          <div class="flex items-center justify-between border-b border-white/10 pb-2">
-            <div class="flex items-center gap-2">
-              <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
-              <span class="text-xs uppercase tracking-[0.25em] font-semibold text-emerald-300">SmartBuild AI Recommendation</span>
-            </div>
-            <span class="text-xs text-white/40">${new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</span>
-          </div>
-          <h1 class="mt-2 font-heading text-xl font-bold tracking-tight text-white">Your PC Build — Selected Components</h1>
-        `;
-      } else {
-        header.innerHTML = `
-          <div class="flex items-center justify-between border-b border-white/10 pb-2">
-            <div class="flex items-center gap-2">
-              <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
-              <span class="text-xs uppercase tracking-[0.25em] font-semibold text-emerald-300">SmartBuild AI Recommendation</span>
-            </div>
-            <span class="text-xs text-white/40">Page Continued</span>
-          </div>
-        `;
-      }
-      page.appendChild(header);
+    // Footer
+    const footer = document.createElement("div");
+    footer.style.cssText = "position:absolute;bottom:16px;left:36px;right:36px;height:24px;border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:rgba(255,255,255,0.4);";
+    footer.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+        <span class="font-medium text-white/50">SmartBuild AI — PC Component Recommendation</span>
+      </div>
+      <span class="font-mono text-white/30 text-[10px]">Verified Hardware Configuration</span>
+    `;
+    page.appendChild(footer);
 
-      const body = document.createElement("div");
-      body.className = "flex flex-col gap-2";
-      body.style.cssText = "display:flex;flex-direction:column;gap:8px;";
-      page.appendChild(body);
-
-      const footer = document.createElement("div");
-      footer.style.cssText = "position:absolute;bottom:18px;left:36px;right:36px;height:24px;border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:rgba(255,255,255,0.4);";
-      page.appendChild(footer);
-
-      host.appendChild(page);
-      return { page, header, body, footer };
-    };
+    host.appendChild(page);
 
     try {
-      // ── Build layout blocks ──────────────────────────────────────
-      interface LayoutBlock {
-        html: string;
-        isHeading?: boolean;
-      }
-      const blocks: LayoutBlock[] = [];
-
-      // 1. Requirements summary (compact header strip)
+      // 1. Requirements summary (original spacious card)
       if (input) {
-        blocks.push({
-          html: `
-            <div class="rounded-xl border border-white/10 bg-white/5 p-3">
-              <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-semibold text-white">Your Requirements</span>
-                  <span class="text-[10px] text-white/40">Target Specifications</span>
-                </div>
-                <span class="rounded-full border border-blue-400/30 bg-blue-400/10 px-2 py-0.5 text-[9px] uppercase tracking-widest text-blue-200 font-medium">Summary</span>
+        const reqDiv = document.createElement("div");
+        reqDiv.innerHTML = `
+          <div class="rounded-xl border border-white/10 bg-white/5 p-3 shrink-0">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold text-white">Your Requirements</span>
+                <span class="text-[10px] text-white/40">Target Specifications</span>
               </div>
-              <div class="grid gap-1.5 grid-cols-4">
-                <div class="flex flex-col rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
-                  <span class="text-white/40 text-[9px] uppercase tracking-wider">Budget</span>
-                  <span class="text-white font-medium text-xs mt-0.5">${fmt(input.min_budget)} – ${fmt(input.max_budget)}</span>
-                </div>
-                <div class="flex flex-col rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
-                  <span class="text-white/40 text-[9px] uppercase tracking-wider">Primary</span>
-                  <span class="text-white font-medium text-xs mt-0.5 truncate">${input.primary_activity}${input.primary_subcategory ? ` (${input.primary_subcategory})` : ""}</span>
-                </div>
-                <div class="flex flex-col rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
-                  <span class="text-white/40 text-[9px] uppercase tracking-wider">Cooling</span>
-                  <span class="text-white font-medium text-xs mt-0.5">${input.cooling_preference ?? "Auto"}</span>
-                </div>
-                <div class="flex flex-col rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
-                  <span class="text-white/40 text-[9px] uppercase tracking-wider">Resolution</span>
-                  <span class="text-white font-medium text-xs mt-0.5">${input.resolution_target}</span>
-                </div>
+              <span class="rounded-full border border-blue-400/30 bg-blue-400/10 px-2 py-0.5 text-[9px] uppercase tracking-widest text-blue-200 font-medium">Summary</span>
+            </div>
+            <div class="grid gap-1.5 grid-cols-4">
+              <div class="flex flex-col rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
+                <span class="text-white/40 text-[9px] uppercase tracking-wider">Budget</span>
+                <span class="text-white font-medium text-xs mt-0.5">${fmt(input.min_budget)} – ${fmt(input.max_budget)}</span>
               </div>
-            </div>`,
-        });
+              <div class="flex flex-col rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
+                <span class="text-white/40 text-[9px] uppercase tracking-wider">Primary</span>
+                <span class="text-white font-medium text-xs mt-0.5 truncate">${input.primary_activity}${input.primary_subcategory ? ` (${input.primary_subcategory})` : ""}</span>
+              </div>
+              <div class="flex flex-col rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
+                <span class="text-white/40 text-[9px] uppercase tracking-wider">Cooling</span>
+                <span class="text-white font-medium text-xs mt-0.5">${input.cooling_preference ?? "Auto"}</span>
+              </div>
+              <div class="flex flex-col rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
+                <span class="text-white/40 text-[9px] uppercase tracking-wider">Resolution</span>
+                <span class="text-white font-medium text-xs mt-0.5">${input.resolution_target}</span>
+              </div>
+            </div>
+          </div>
+        `.trim();
+        body.appendChild(reqDiv.firstElementChild as HTMLElement);
       }
 
-      // 2. SDG 12 Banner (if present)
+      // 2. SDG 12 Banner (if eco build)
       const sdg = (result as any)?.sdg12_metrics;
       if (sdg) {
-        blocks.push({
-          html: `
-            <div class="rounded-xl border border-emerald-400/40 bg-emerald-500/15 px-3 py-2 flex items-center justify-between">
-              <div>
-                <div class="flex items-center gap-2">
-                  <span class="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300 border border-emerald-400/30">SDG 12 Verified</span>
-                  <span class="text-xs font-semibold text-white">Hardware Upcycling — Zero-Waste Build</span>
-                </div>
-                <p class="text-[10px] text-slate-300/80 mt-0.5">Reused ${sdg.reused_count} component(s) at ₱0 cost.</p>
+        const sdgDiv = document.createElement("div");
+        sdgDiv.innerHTML = `
+          <div class="rounded-xl border border-emerald-400/40 bg-emerald-500/15 px-3 py-2 flex items-center justify-between shrink-0">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300 border border-emerald-400/30">SDG 12 Verified</span>
+                <span class="text-xs font-semibold text-white">Hardware Upcycling — Zero-Waste Build</span>
               </div>
-              <div class="text-right">
-                <span class="text-[9px] text-white/50 uppercase tracking-wider font-mono block">Diverted E-Waste</span>
-                <span class="font-heading text-base font-bold text-emerald-300">~${sdg.ewaste_diverted_kg} kg</span>
-              </div>
-            </div>`,
-        });
+              <p class="text-[10px] text-slate-300/80 mt-0.5">Reused ${sdg.reused_count} component(s) at ₱0 cost.</p>
+            </div>
+            <div class="text-right">
+              <span class="text-[9px] text-white/50 uppercase tracking-wider font-mono block">Diverted E-Waste</span>
+              <span class="font-heading text-base font-bold text-emerald-300">~${sdg.ewaste_diverted_kg} kg</span>
+            </div>
+          </div>
+        `.trim();
+        body.appendChild(sdgDiv.firstElementChild as HTMLElement);
       }
 
       // 3. Section Heading
-      blocks.push({
-        isHeading: true,
-        html: `
-          <div class="flex items-center justify-between pt-0.5">
-            <div class="flex items-center gap-2">
-              <h2 class="font-heading text-sm font-bold uppercase tracking-wider text-white">Component Breakdown</h2>
-              <span class="text-[11px] text-white/40 font-normal">— Selected Components &amp; Prices</span>
-            </div>
-            <span class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[9px] uppercase tracking-widest text-emerald-200 font-medium">Build</span>
-          </div>`,
-      });
+      const headingDiv = document.createElement("div");
+      headingDiv.innerHTML = `
+        <div class="flex items-center justify-between pt-0.5 shrink-0">
+          <div class="flex items-center gap-2">
+            <h2 class="font-heading text-sm font-bold uppercase tracking-wider text-white">Component Breakdown</h2>
+            <span class="text-[11px] text-white/40 font-normal">— Selected Components</span>
+          </div>
+          <span class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[9px] uppercase tracking-widest text-emerald-200 font-medium">Build</span>
+        </div>
+      `.trim();
+      body.appendChild(headingDiv.firstElementChild as HTMLElement);
 
-      // 4. Component rows — ONLY the currently-selected main pick per category
-      //    (respects any swaps the user made before downloading)
+      // 4. Component Cards (original spacious card sizing & layout)
       const ORDERED_CATS = ["cpu", "gpu", "motherboard", "ram", "storage", "psu", "case", "cpu_cooler", "case_fan"];
       let totalCost = 0;
 
@@ -598,7 +576,6 @@ export default function BuildResultPage() {
         const entry = result.build[cat];
         if (!entry) continue;
 
-        // Always resolve the .main pick — this is the component the user has selected
         const comp: ComponentData | null =
           entry && typeof entry === "object" && "main" in entry
             ? (entry as ComponentGroup).main
@@ -614,79 +591,47 @@ export default function BuildResultPage() {
         const specs = getCompSpecSnippet(cat, comp);
         const tier = result.tiers[cat] ?? "";
 
-        // ── Full spec details for the PDF ───────────────────────────
-        // Build a detailed spec list from raw component fields
-        const specDetails: string[] = [];
-        if (cat === "cpu") {
-          if (comp.core_count) specDetails.push(`${comp.core_count} Cores / ${comp.thread_count ?? Number(comp.core_count) * 2} Threads`);
-          if (comp.boost_clock) specDetails.push(`${comp.boost_clock} GHz Boost`);
-          if (comp.core_clock) specDetails.push(`${comp.core_clock} GHz Base`);
-          if (comp.socket) specDetails.push(`Socket ${comp.socket}`);
-          if (comp.tdp) specDetails.push(`${comp.tdp}W TDP`);
-        } else if (cat === "gpu") {
-          if (comp.memory) specDetails.push(`${comp.memory} GB VRAM`);
-          if (comp.chipset) specDetails.push(String(comp.chipset));
-          if (comp.boost_clock) specDetails.push(`${comp.boost_clock} MHz Boost`);
-        } else if (cat === "ram") {
-          if (comp.total_capacity_gb) specDetails.push(`${comp.total_capacity_gb} GB`);
-          if (comp.ddr_gen) specDetails.push(String(comp.ddr_gen));
-          if (comp.speed_mhz) specDetails.push(`${comp.speed_mhz} MHz`);
-        } else if (cat === "storage") {
-          const cap = comp.capacity ? (Number(comp.capacity) >= 1000 ? `${(Number(comp.capacity) / 1000).toFixed(0)} TB` : `${comp.capacity} GB`) : "";
-          if (cap) specDetails.push(cap);
-          if (comp.type) specDetails.push(String(comp.type));
-        } else if (cat === "psu") {
-          if (comp.wattage) specDetails.push(`${comp.wattage}W`);
-          if (comp.efficiency_rating ?? (comp as any).efficiency) specDetails.push(String(comp.efficiency_rating ?? (comp as any).efficiency));
-        } else if (cat === "motherboard") {
-          if (comp.socket) specDetails.push(`Socket ${comp.socket}`);
-          if (comp.form_factor) specDetails.push(String(comp.form_factor));
-          if (comp.max_memory) specDetails.push(`Max ${comp.max_memory} GB RAM`);
-          if ((comp as any).ddr_gen) specDetails.push(String((comp as any).ddr_gen));
-        } else if (cat === "case") {
-          if (comp.type ?? comp.form_factor) specDetails.push(String(comp.type ?? comp.form_factor));
-        } else if (cat === "cpu_cooler") {
-          if (comp.size) specDetails.push(`${comp.size} mm`);
-          specDetails.push(String(comp.name ?? "").toUpperCase().includes("LIQUID") ? "Liquid AIO" : "Air Cooler");
-        } else if (cat === "case_fan") {
-          if ((comp as any).airflow_cfm) specDetails.push(`${(comp as any).airflow_cfm} CFM`);
-        }
-        const specRowHtml = specDetails.length > 0
-          ? `<div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">${specDetails.map(s => `<span class="text-[10px] text-white/50 font-mono">${s}</span>`).join('<span class="text-white/20 text-[10px]">·</span>')}</div>`
-          : "";
+        const borderClass = isReused
+          ? "border-emerald-500/30 bg-emerald-500/[0.06]"
+          : "border-white/10 bg-white/5";
+
+        const priceHtml = isReused
+          ? `<span class="text-xs font-bold text-emerald-300">₱0 (Customer Provided)</span>`
+          : `<span class="text-xs font-semibold text-white">${compPrice > 0 ? fmt(compPrice) : "—"}</span>`;
+
+        const badgeHtml = isReused
+          ? `<span class="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-300 border border-emerald-400/30">Reused Hardware (SDG 12)</span>`
+          : `<span class="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-300">Main Option</span>`;
 
         const tierBadge = tier && !isReused
           ? `<span class="rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-wider ${TIER_COLORS[tier] ?? TIER_COLORS.mid}">${tier}</span>`
           : "";
 
-        const priceHtml = isReused
-          ? `<span class="text-sm font-bold text-emerald-300">₱0</span><span class="text-[9px] text-emerald-400/70 mt-0.5">Customer Provided</span>`
-          : `<span class="text-sm font-bold text-white">${compPrice > 0 ? fmt(compPrice) : "—"}</span>`;
+        const specClass = isReused ? "text-emerald-300/80 font-medium" : "text-white/45";
 
-        const borderClass = isReused
-          ? "border-emerald-500/30 bg-emerald-500/[0.06]"
-          : "border-white/10 bg-white/[0.04]";
-
-        blocks.push({
-          html: `
-            <div class="rounded-xl border p-3 ${borderClass}">
-              <div class="flex items-start justify-between gap-4">
-                <div class="min-w-0 flex-1">
-                  <p class="text-[9px] text-white/40 uppercase tracking-wider font-medium mb-0.5">${label}</p>
-                  <p class="text-xs font-semibold text-white leading-snug">${name}</p>
-                  ${specRowHtml}
+        const cardDiv = document.createElement("div");
+        cardDiv.innerHTML = `
+          <div class="rounded-xl border p-2.5 shrink-0 ${borderClass}">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <p class="text-[10px] text-white/50 uppercase tracking-wider font-medium">${label}</p>
+                  ${badgeHtml}
                 </div>
-                <div class="flex flex-col items-end gap-1 shrink-0 text-right">
-                  ${priceHtml}
-                  ${tierBadge}
-                  ${isReused ? `<span class="rounded-full bg-emerald-400/20 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-emerald-300 border border-emerald-400/30">SDG 12</span>` : ""}
-                </div>
+                <p class="mt-0.5 text-xs font-semibold text-white leading-snug">${name}</p>
+                ${specs && specs !== "—" ? `<p class="text-[10px] mt-0.5 font-mono ${specClass}">${specs}</p>` : ""}
               </div>
-            </div>`,
-        });
+              <div class="flex flex-col items-end gap-1 shrink-0 pt-0.5">
+                ${priceHtml}
+                ${tierBadge}
+              </div>
+            </div>
+          </div>
+        `.trim();
+        body.appendChild(cardDiv.firstElementChild as HTMLElement);
       }
 
-      // 5. Total cost summary row
+      // 5. Total Cost summary row (anchored right before the footer)
       const budgetOk = input
         ? (totalCost >= input.min_budget && totalCost <= input.max_budget)
         : result.budget_fit;
@@ -694,77 +639,38 @@ export default function BuildResultPage() {
         ? "border-emerald-400/50 bg-emerald-400/20 text-emerald-200"
         : "border-red-400/50 bg-red-400/20 text-red-200";
 
-      blocks.push({
-        html: `
-          <div class="rounded-xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-slate-900/40 p-3.5 flex items-center justify-between mt-1">
-            <div>
-              <p class="text-[9px] uppercase tracking-widest font-semibold text-emerald-300/70">Total Build Cost</p>
-              <p class="mt-0.5 font-heading text-2xl font-bold text-white">${fmt(totalCost)}</p>
-              ${input ? `<p class="mt-0.5 text-[11px] text-white/40">Budget range: ${fmt(input.min_budget)} – ${fmt(input.max_budget)}</p>` : ""}
-            </div>
-            <span class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wider ${statusClasses}">
-              ${budgetOk ? "✓ Within Budget" : "⚠ Over Budget"}
-            </span>
-          </div>`,
-      });
-
-      // ── Paginate blocks into A4 pages ────────────────────────────
-      const MAX_PAGE_CONTENT_BOTTOM = PAGE_H - 54;
-      let currentPage = createPage(0);
-      pages.push(currentPage);
-
-      for (const block of blocks) {
-        const temp = document.createElement("div");
-        temp.innerHTML = block.html.trim();
-        const element = temp.firstElementChild as HTMLElement;
-        if (!element) continue;
-
-        currentPage.body.appendChild(element);
-
-        const currentContentBottom = currentPage.body.offsetTop + currentPage.body.offsetHeight;
-        const isOverflow = currentContentBottom > MAX_PAGE_CONTENT_BOTTOM;
-        const isOrphanHeading = Boolean(block.isHeading && (MAX_PAGE_CONTENT_BOTTOM - currentContentBottom < 80));
-
-        if ((isOverflow || isOrphanHeading) && currentPage.body.children.length > 1) {
-          currentPage.body.removeChild(element);
-          currentPage = createPage(pages.length);
-          pages.push(currentPage);
-          currentPage.body.appendChild(element);
-        }
-      }
-
-      // ── Stamp page footers ───────────────────────────────────────
-      const totalPages = pages.length;
-      pages.forEach((p, idx) => {
-        p.footer.innerHTML = `
-          <div class="flex items-center gap-2">
-            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-            <span class="font-medium text-white/50">SmartBuild AI — PC Component Recommendation</span>
+      const totalDiv = document.createElement("div");
+      totalDiv.innerHTML = `
+        <div class="rounded-xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-slate-900/40 p-3 flex items-center justify-between shrink-0 mt-auto">
+          <div>
+            <p class="text-[9px] uppercase tracking-widest font-semibold text-emerald-300/70">Estimated Total</p>
+            <p class="mt-0.5 font-heading text-xl font-bold text-white">${fmt(totalCost)}</p>
+            ${input ? `<p class="mt-0.5 text-[11px] text-emerald-200/60">Budget: ${fmt(input.min_budget)} – ${fmt(input.max_budget)}</p>` : ""}
           </div>
-          <span class="font-mono text-white/50">Page ${idx + 1} of ${totalPages}</span>
-        `;
-      });
+          <span class="rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider ${statusClasses}">
+            ${budgetOk ? "Within Budget" : "Over Budget"}
+          </span>
+        </div>
+      `.trim();
+      body.appendChild(totalDiv.firstElementChild as HTMLElement);
 
-      // ── Fonts + rAF settle ───────────────────────────────────────
+      // Fonts & Layout wait
       if (document.fonts) await document.fonts.ready;
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-      // ── Render pages → jsPDF ─────────────────────────────────────
+      // Render single page
       const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
       const pdfWidth = 595.28;
       const pdfHeight = 841.89;
 
-      for (let i = 0; i < pages.length; i++) {
-        if (i > 0) pdf.addPage();
-        const canvas = await html2canvas(pages[i].page, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#020617",
-          logging: false,
-        });
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pdfWidth, pdfHeight);
-      }
+      const canvas = await html2canvas(page, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#020617",
+        logging: false,
+      });
 
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pdfWidth, pdfHeight);
       pdf.save("SmartBuild-Recommendation.pdf");
     } catch (err) {
       console.error("PDF generation failed:", err);
